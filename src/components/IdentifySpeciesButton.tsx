@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { identifySpecies } from '../lib/ai'
 import type { SpeciesCandidate } from '../types/ai'
 import { Alert } from './ui'
+import { Sparkle } from './icons'
 
 /**
  * Knapp som sender det valgte bildet til Claude og viser artskandidater.
@@ -59,7 +60,8 @@ export default function IdentifySpeciesButton({
         disabled={loading}
         className="inline-flex items-center gap-1.5 rounded-xl bg-brand-100 px-3 py-2 text-sm font-medium text-brand-800 hover:bg-brand-200 disabled:opacity-50"
       >
-        ✨ {loading ? 'Finner art…' : 'Finn art'}
+        <Sparkle className="h-4 w-4" />
+        {loading ? 'Finner art…' : 'Finn art'}
       </button>
 
       {error && <Alert tone="error">{error}</Alert>}

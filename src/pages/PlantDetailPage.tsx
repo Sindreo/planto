@@ -8,6 +8,7 @@ import type { CareEvent, Diagnosis, Plant, Profile } from '../types/db'
 import DiagnosePanel from '../components/DiagnosePanel'
 import DiagnosisCard from '../components/DiagnosisCard'
 import { Button, Spinner } from '../components/ui'
+import { ArrowLeft, Drop, Leaf, Note, Pin, PlantMark } from '../components/icons'
 
 export default function PlantDetailPage() {
   const { id } = useParams()
@@ -93,8 +94,9 @@ export default function PlantDetailPage() {
   if (!plant) {
     return (
       <div>
-        <Link to="/planter" className="text-sm text-brand-700 hover:underline">
-          ← Tilbake
+        <Link to="/planter" className="inline-flex items-center gap-1 text-sm text-brand-700 hover:underline">
+          <ArrowLeft className="h-4 w-4" />
+          Tilbake
         </Link>
         <p className="mt-4 text-gray-600">Fant ikke planten.</p>
       </div>
@@ -105,8 +107,9 @@ export default function PlantDetailPage() {
 
   return (
     <div className="space-y-5">
-      <Link to="/planter" className="text-sm text-brand-700 hover:underline">
-        ← Alle planter
+      <Link to="/planter" className="inline-flex items-center gap-1 text-sm text-brand-700 hover:underline">
+        <ArrowLeft className="h-4 w-4" />
+        Alle planter
       </Link>
 
       {error && (
@@ -121,7 +124,9 @@ export default function PlantDetailPage() {
           {plant.photo_url ? (
             <img src={plant.photo_url} alt={plant.nickname} className="h-full w-full object-cover" />
           ) : (
-            <div className="grid h-full w-full place-items-center text-6xl">🪴</div>
+            <div className="grid h-full w-full place-items-center text-brand-500">
+              <PlantMark className="h-16 w-16" />
+            </div>
           )}
         </div>
         <div className="p-4">
@@ -129,7 +134,12 @@ export default function PlantDetailPage() {
             <div>
               <h1 className="text-xl font-bold text-gray-900">{plant.nickname}</h1>
               {plant.species && <p className="text-sm text-gray-500">{plant.species}</p>}
-              {plant.location && <p className="text-sm text-gray-500">📍 {plant.location}</p>}
+              {plant.location && (
+                <p className="inline-flex items-center gap-1 text-sm text-gray-500">
+                  <Pin className="h-3.5 w-3.5" />
+                  {plant.location}
+                </p>
+              )}
             </div>
             <Link
               to={`/plants/${plant.id}/rediger`}
@@ -152,7 +162,8 @@ export default function PlantDetailPage() {
               {waterStatusLabel(plant)}
             </span>
             <Button onClick={handleWatered} disabled={watering}>
-              💧 {watering ? 'Lagrer…' : 'Vannet i dag'}
+              <Drop className="h-4 w-4" />
+              {watering ? 'Lagrer…' : 'Vannet i dag'}
             </Button>
           </div>
         </div>
@@ -217,8 +228,18 @@ function Field({ label, value }: { label: string; value: string | null }) {
   )
 }
 
-function eventIcon(type: CareEvent['type']): string {
-  return { watered: '💧', fertilized: '🌿', repotted: '🪴', note: '📝' }[type]
+function EventIcon({ type }: { type: CareEvent['type'] }) {
+  const cls = 'h-4 w-4 shrink-0 text-brand-600'
+  switch (type) {
+    case 'watered':
+      return <Drop className={cls} />
+    case 'fertilized':
+      return <Leaf className={cls} />
+    case 'repotted':
+      return <PlantMark className={cls} />
+    case 'note':
+      return <Note className={cls} />
+  }
 }
 function eventLabel(type: CareEvent['type']): string {
   return { watered: 'Vannet', fertilized: 'Gjødslet', repotted: 'Ompottet', note: 'Notat' }[type]
@@ -251,7 +272,7 @@ function Timeline({
       {items.map((it) =>
         it.kind === 'care' ? (
           <li key={it.id} className="flex items-center gap-2 text-sm">
-            <span>{eventIcon(it.event.type)}</span>
+            <EventIcon type={it.event.type} />
             <span className="text-gray-700">{eventLabel(it.event.type)}</span>
             <span className="text-gray-400">·</span>
             <span className="text-gray-500">{members[it.event.user_id] ?? 'Noen'}</span>

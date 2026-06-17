@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import type { Plant } from '../types/db'
 import PlantForm from '../components/PlantForm'
 import { Spinner } from '../components/ui'
+import { ArrowLeft } from '../components/icons'
 
 export default function PlantFormPage() {
   const { id } = useParams()
@@ -29,8 +30,12 @@ export default function PlantFormPage() {
 
   return (
     <div>
-      <Link to={isEdit ? `/plants/${id}` : '/planter'} className="text-sm text-brand-700 hover:underline">
-        ← Tilbake
+      <Link
+        to={isEdit ? `/plants/${id}` : '/planter'}
+        className="inline-flex items-center gap-1 text-sm text-brand-700 hover:underline"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Tilbake
       </Link>
       <h1 className="mb-5 mt-2 text-xl font-bold text-gray-900">
         {isEdit ? 'Rediger plante' : 'Ny plante'}

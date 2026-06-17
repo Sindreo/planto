@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { Alert, Button, Card, Input } from '../components/ui'
+import { PlantoMark } from '../components/icons'
 
 type Mode = 'signin' | 'signup'
 
@@ -46,8 +47,8 @@ export default function LoginPage() {
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col justify-center p-4">
       <div className="mb-6 text-center">
-        <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-2xl bg-brand-600 text-3xl">
-          🌱
+        <div className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-2xl bg-brand-600">
+          <PlantoMark className="h-9 w-9 text-white" />
         </div>
         <h1 className="text-2xl font-bold text-brand-800">Planto</h1>
         <p className="text-sm text-gray-600">

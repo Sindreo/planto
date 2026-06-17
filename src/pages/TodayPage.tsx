@@ -6,6 +6,7 @@ import { logWatering } from '../lib/care'
 import { todayISO, waterStatus } from '../lib/format'
 import type { Plant } from '../types/db'
 import { Spinner } from '../components/ui'
+import { Check, Drop, PlantMark } from '../components/icons'
 
 /**
  * «I dag»-skjerm (4.2 i SPEC): planter som forfaller i dag eller er på
@@ -61,8 +62,8 @@ export default function TodayPage() {
         </div>
       ) : plants.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-brand-200 bg-white/60 p-10 text-center">
-          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-brand-100 text-3xl">
-            ✅
+          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-brand-100 text-brand-600">
+            <Check className="h-7 w-7" />
           </div>
           <h2 className="text-lg font-semibold text-gray-800">Alt er à jour!</h2>
           <p className="mt-1 text-sm text-gray-500">Ingen planter trenger vann i dag.</p>
@@ -126,7 +127,9 @@ function PlantRow({
           {plant.photo_url ? (
             <img src={plant.photo_url} alt="" className="h-full w-full object-cover" />
           ) : (
-            <div className="grid h-full w-full place-items-center text-2xl">🪴</div>
+            <div className="grid h-full w-full place-items-center text-brand-500">
+              <PlantMark className="h-6 w-6" />
+            </div>
           )}
         </div>
         <div className="min-w-0">
@@ -137,10 +140,11 @@ function PlantRow({
       <button
         onClick={onWater}
         disabled={busy}
-        className="shrink-0 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
         type="button"
       >
-        💧 {busy ? '…' : 'Vannet'}
+        <Drop className="h-4 w-4" />
+        {busy ? '…' : 'Vannet'}
       </button>
     </li>
   )

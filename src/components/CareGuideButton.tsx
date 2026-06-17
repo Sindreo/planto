@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { fillCareGuide } from '../lib/ai'
 import type { CareGuideResult } from '../types/ai'
+import { Sparkle } from './icons'
 
 /**
  * Knapp som ber Claude fylle ut stellguiden basert på art (uten bilde).
@@ -43,7 +44,8 @@ export default function CareGuideButton({
         disabled={loading}
         className="inline-flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-xs font-medium text-brand-800 shadow-sm hover:bg-brand-50 disabled:opacity-50"
       >
-        ✨ {loading ? 'Henter…' : 'Fyll ut med AI'}
+        <Sparkle className="h-3.5 w-3.5" />
+        {loading ? 'Henter…' : 'Fyll ut med AI'}
       </button>
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>

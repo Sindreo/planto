@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { waterStatus, waterStatusLabel } from '../lib/format'
 import type { Plant } from '../types/db'
 import { Button, Spinner } from '../components/ui'
+import { PlantMark, Plus } from '../components/icons'
 
 export default function PlantsPage() {
   const { profile } = useAuth()
@@ -35,7 +36,10 @@ export default function PlantsPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Plantene mine</h1>
         <Link to="/plants/new">
-          <Button>+ Ny plante</Button>
+          <Button>
+            <Plus className="h-4 w-4" />
+            Ny plante
+          </Button>
         </Link>
       </div>
 
@@ -61,7 +65,9 @@ export default function PlantsPage() {
                   {p.photo_url ? (
                     <img src={p.photo_url} alt={p.nickname} className="h-full w-full object-cover" />
                   ) : (
-                    <div className="grid h-full w-full place-items-center text-4xl">🪴</div>
+                    <div className="grid h-full w-full place-items-center text-brand-500">
+                      <PlantMark className="h-10 w-10" />
+                    </div>
                   )}
                 </div>
                 <div className="p-3">
@@ -96,8 +102,8 @@ function StatusBadge({ plant }: { plant: Plant }) {
 function EmptyState() {
   return (
     <div className="rounded-2xl border border-dashed border-brand-200 bg-white/60 p-10 text-center">
-      <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-brand-100 text-3xl">
-        🪴
+      <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-brand-100 text-brand-500">
+        <PlantMark className="h-8 w-8" />
       </div>
       <h2 className="text-lg font-semibold text-gray-800">Ingen planter ennå</h2>
       <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
@@ -105,7 +111,10 @@ function EmptyState() {
         fylle ut stellguiden.
       </p>
       <Link to="/plants/new" className="mt-4 inline-block">
-        <Button>+ Legg til plante</Button>
+        <Button>
+          <Plus className="h-4 w-4" />
+          Legg til plante
+        </Button>
       </Link>
     </div>
   )
