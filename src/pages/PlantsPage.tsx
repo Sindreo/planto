@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { waterStatus, waterStatusLabel } from '../lib/format'
 import type { Plant } from '../types/db'
-import { Spinner } from '../components/ui'
+import { Button, Spinner } from '../components/ui'
 
-/**
- * Oversiktsside. I M0 viser den en tom liste (eller eventuelle rader fra
- * databasen). Full CRUD og plantekort kommer i M1.
- */
 export default function PlantsPage() {
   const { profile } = useAuth()
   const [plants, setPlants] = useState<Plant[]>([])
@@ -36,6 +34,9 @@ export default function PlantsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Plantene mine</h1>
+        <Link to="/plants/new">
+          <Button>+ Ny plante</Button>
+        </Link>
       </div>
 
       {loading ? (
@@ -49,19 +50,46 @@ export default function PlantsPage() {
       ) : plants.length === 0 ? (
         <EmptyState />
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {plants.map((p) => (
-            <li
-              key={p.id}
-              className="rounded-2xl border border-brand-100 bg-white p-4 shadow-sm"
-            >
-              <p className="font-semibold text-gray-900">{p.nickname}</p>
-              {p.species && <p className="text-sm text-gray-500">{p.species}</p>}
+            <li key={p.id}>
+              <Link
+                to={`/plants/${p.id}`}
+                className="block overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm transition hover:shadow-md"
+              >
+                <div className="aspect-square w-full bg-brand-100">
+                  {p.photo_url ? (
+                    <img src={p.photo_url} alt={p.nickname} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center text-4xl">🪴</div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <p className="truncate font-semibold text-gray-900">{p.nickname}</p>
+                  {p.species && <p className="truncate text-xs text-gray-500">{p.species}</p>}
+                  <StatusBadge plant={p} />
+                </div>
+              </Link>
             </li>
           ))}
         </ul>
       )}
     </div>
+  )
+}
+
+function StatusBadge({ plant }: { plant: Plant }) {
+  const status = waterStatus(plant)
+  const styles: Record<string, string> = {
+    overdue: 'bg-red-100 text-red-700',
+    due_today: 'bg-amber-100 text-amber-800',
+    upcoming: 'bg-brand-50 text-brand-700',
+    none: 'bg-gray-100 text-gray-500',
+  }
+  return (
+    <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${styles[status]}`}>
+      {waterStatusLabel(plant)}
+    </span>
   )
 }
 
@@ -73,9 +101,12 @@ function EmptyState() {
       </div>
       <h2 className="text-lg font-semibold text-gray-800">Ingen planter ennå</h2>
       <p className="mx-auto mt-1 max-w-sm text-sm text-gray-500">
-        Her dukker plantene deres opp. Muligheten til å legge til planter kommer i
-        neste milepæl (M1).
+        Legg til den første planten deres – ta et bilde, så kan AI gjette arten og
+        fylle ut stellguiden.
       </p>
+      <Link to="/plants/new" className="mt-4 inline-block">
+        <Button>+ Legg til plante</Button>
+      </Link>
     </div>
   )
 }

@@ -1,4 +1,9 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+  TextareaHTMLAttributes,
+} from 'react'
 
 export function Button({
   children,
@@ -37,6 +42,46 @@ export function Input({
         className={`w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200 ${className}`}
         {...props}
       />
+    </label>
+  )
+}
+
+export function Textarea({
+  label,
+  className = '',
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) {
+  return (
+    <label className="block">
+      {label && (
+        <span className="mb-1 block text-sm font-medium text-gray-700">{label}</span>
+      )}
+      <textarea
+        className={`w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200 ${className}`}
+        {...props}
+      />
+    </label>
+  )
+}
+
+export function Checkbox({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-5 w-5 rounded border-gray-300 text-brand-600 focus:ring-brand-200"
+      />
+      <span className="text-sm font-medium text-gray-700">{label}</span>
     </label>
   )
 }

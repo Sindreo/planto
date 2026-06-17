@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { NavLink } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Household } from '../types/db'
@@ -94,7 +95,54 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-6">{children}</main>
+      <OfflineBanner />
+
+      <main className="mx-auto max-w-2xl px-4 py-6 pb-24">{children}</main>
+
+      {/* Bunn-navigasjon (mobil-først) */}
+      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-brand-100 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-2xl">
+          <NavTab to="/" label="I dag" icon="📅" />
+          <NavTab to="/planter" label="Planter" icon="🪴" />
+        </div>
+      </nav>
     </div>
+  )
+}
+
+function OfflineBanner() {
+  const [online, setOnline] = useState(navigator.onLine)
+  useEffect(() => {
+    const on = () => setOnline(true)
+    const off = () => setOnline(false)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => {
+      window.removeEventListener('online', on)
+      window.removeEventListener('offline', off)
+    }
+  }, [])
+  if (online) return null
+  return (
+    <div className="bg-amber-100 px-4 py-2 text-center text-sm text-amber-800">
+      Du er offline – viser sist lagrede data. Endringer krever nett.
+    </div>
+  )
+}
+
+function NavTab({ to, label, icon }: { to: string; label: string; icon: string }) {
+  return (
+    <NavLink
+      to={to}
+      end={to === '/'}
+      className={({ isActive }) =>
+        `flex flex-1 flex-col items-center gap-0.5 py-3 text-xs font-medium ${
+          isActive ? 'text-brand-700' : 'text-gray-400'
+        }`
+      }
+    >
+      <span className="text-lg">{icon}</span>
+      {label}
+    </NavLink>
   )
 }

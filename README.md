@@ -1,110 +1,152 @@
 # 🌱 Planto
 
 En PWA for plantestell for en husstand på to personer. Bygget med React + Vite +
-TypeScript, Tailwind, Supabase og (fra M2) Claude `claude-sonnet-4-6` for
+TypeScript, Tailwind, Supabase og Claude `claude-sonnet-4-6` (vision) for
 bildediagnose og plante-ID.
 
 Se [`SPEC.md`](./SPEC.md) for full produkt- og teknisk spesifikasjon.
 
 ---
 
-## Status: M0 ✅
-
-Prosjektoppsett, Supabase-tabeller med RLS, og fungerende innlogging.
-Du kan registrere deg, logge inn, opprette/bli med i en husstand, og se en
-(foreløpig tom) planteliste.
+## Status: hele v1 bygget 🎉
 
 | Milepæl | Innhold | Status |
 |---------|---------|--------|
-| **M0** | Oppsett, auth, tabeller + RLS | ✅ Ferdig |
-| M1 | Planteregister (CRUD, bilder) | ⏳ Neste |
-| M2 | Bildediagnose + plante-ID (Claude) | – |
-| M3 | Vanne-/stell-påminner + «I dag» | – |
-| M4 | Daglig e-postoppsummering | – |
-| M5 | Polish, offline, onboarding | – |
+| **M0** | Oppsett, auth, tabeller + RLS | ✅ |
+| **M1** | Planteregister (CRUD, bilder, oversikt + detalj) | ✅ |
+| **M2** | Bildediagnose + plante-ID + AI-stellguide (Claude) | ✅ |
+| **M3** | Vanne-påminner, «Vannet i dag», «I dag»-skjerm, logg | ✅ |
+| **M4** | Daglig e-postoppsummering (Resend, cron) | ✅ |
+| **M5** | Tomtilstander, lasting, feil, offline-caching | ✅ |
+
+> Frontend kjører uten nøkler (viser hjelpeskjerm). For AI (M2) og e-post (M4)
+> må du sette opp Anthropic- og Resend-nøkler som beskrevet under.
 
 ---
 
-## Kom i gang (steg for steg)
+## Kom i gang (lokal testing)
 
-> Trenger du bare å teste? Følg 1–4. Tar ca. 10 minutter.
-
-### 1. Installer avhengigheter
-
+### 1. Installer
 ```bash
 npm install
 ```
 
-### 2. Sett opp Supabase
+### 2. Supabase-database
+Følg [`supabase/README.md`](./supabase/README.md): opprett gratis prosjekt og kjør
+SQL-filene i `supabase/migrations/` (først `0001_init.sql`, så `0002_storage.sql`)
+i SQL Editor.
 
-Følg [`supabase/README.md`](./supabase/README.md):
-opprett et gratis prosjekt, kjør `supabase/migrations/0001_init.sql` i SQL Editor,
-og kopier de to API-nøklene.
-
-### 3. Legg inn nøklene lokalt
-
+### 3. Frontend-nøkler
 ```bash
 cp .env.example .env.local
 ```
+Lim inn `VITE_SUPABASE_URL` og `VITE_SUPABASE_ANON_KEY` (Project Settings → API).
 
-Åpne `.env.local` og lim inn `VITE_SUPABASE_URL` og `VITE_SUPABASE_ANON_KEY`
-fra Supabase (Project Settings → API).
-
-### 4. Start appen
-
+### 4. Start
 ```bash
 npm run dev
 ```
+Registrer deg → **Opprett husstand** → del invitasjonskoden med den andre, som
+velger **Bli med**. Legg til planter, prøv «Vannet i dag» og «I dag»-skjermen.
 
-Åpne adressen som vises (vanligvis http://localhost:5173).
+---
 
-- Lager du ikke `.env.local`, viser appen en hjelpeskjerm i stedet for å krasje.
-- Første gang: trykk **Ny konto**, registrer deg, og **Opprett husstand**. Du får
-  en invitasjonskode (vises under profil-knappen oppe til høyre).
-- Den andre personen registrerer seg og velger **Bli med** med samme kode → da
-  deler dere de samme plantene.
+## AI (M2) – Claude bildediagnose, plante-ID og stellguide
 
-### 5. (Senere) Deploy
+AI-kallene går gjennom Edge Function-en `plant-ai`, som holder Anthropic-nøkkelen
+hemmelig. Den må deployes til Supabase.
 
-Prosjektet er klart for **Vercel** eller **Netlify**:
+**Du trenger:** en Anthropic API-nøkkel fra https://console.anthropic.com
+(Settings → API Keys). Den legges KUN som hemmelig miljøvariabel – aldri i koden.
 
-- **Vercel:** importer repoet, sett build-kommando `npm run build`, output `dist`.
-  Legg inn `VITE_SUPABASE_URL` og `VITE_SUPABASE_ANON_KEY` som Environment Variables.
-- **Netlify:** `netlify.toml` er allerede satt opp. Legg inn de samme to
-  miljøvariablene under Site settings → Environment.
+**Deploy (enklest med Supabase CLI):**
+```bash
+npm i -g supabase
+supabase login
+supabase link --project-ref DIN-PROSJEKT-REF
 
-HTTPS (kreves for PWA) får du automatisk hos begge.
+# Sett hemmeligheten (ligger trygt i Supabase, ikke i git):
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+
+# Deploy funksjonen:
+supabase functions deploy plant-ai
+```
+`SUPABASE_URL`, `SUPABASE_ANON_KEY` og `SUPABASE_SERVICE_ROLE_KEY` settes
+automatisk av Supabase. Valgfritt: `MAX_AI_PER_DAY` (standard 40) som
+kostnadssikring.
+
+Etter deploy fungerer «Gjett art fra bilde», «Fyll ut med AI» og «Kjør diagnose»
+i appen.
+
+---
+
+## E-post (M4) – daglig oppsummering
+
+Edge Function-en `daily-summary` sender begge i husstanden en e-post når noe
+forfaller. Den kalles av en daglig cron-jobb.
+
+**Du trenger:** en gratis Resend-konto (https://resend.com) og en API-nøkkel.
+
+```bash
+supabase secrets set RESEND_API_KEY=re_...
+supabase secrets set RESEND_FROM="Planto <onboarding@resend.dev>"
+supabase secrets set CRON_SECRET=$(openssl rand -hex 16)   # en tilfeldig hemmelighet
+supabase functions deploy daily-summary
+```
+> `onboarding@resend.dev` virker for testing. For egen avsenderadresse må du
+> verifisere et domene i Resend.
+
+**Planlegg jobben:** åpne `supabase/scheduled.sql`, bytt ut `<PROSJEKT-REF>` og
+`<CRON_SECRET>`, og kjør i SQL Editor. Den kjører kl. 07:00 UTC daglig.
+
+Test manuelt (uten å vente til neste morgen):
+```bash
+curl -X POST https://DIN-PROSJEKT-REF.supabase.co/functions/v1/daily-summary \
+  -H "x-cron-secret: DIN-CRON-SECRET"
+```
+
+---
+
+## Deploy frontend
+
+- **Vercel:** importer repoet (build `npm run build`, output `dist`), legg inn
+  `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` som Environment Variables.
+- **Netlify:** `netlify.toml` er ferdig. Legg inn de samme to variablene.
+
+HTTPS (kreves for PWA) får du automatisk. På mobil: «Legg til på hjemskjerm».
 
 ---
 
 ## Sikkerhet
 
-- **Anthropic-nøkkelen kommer ALDRI i frontend.** Den legges som hemmelig
-  miljøvariabel i en Supabase Edge Function (bygges i M2).
-- Frontend bruker kun den offentlige `anon`-nøkkelen. **Row Level Security** i
-  databasen sørger for at en bruker bare ser data for sin egen husstand.
+- **Anthropic- og Resend-nøklene ligger ALDRI i frontend** – kun som hemmelige
+  Edge Function-variabler.
+- Frontend bruker kun `anon`-nøkkelen; **Row Level Security** sikrer at en bruker
+  bare ser data for sin egen husstand. Storage-opplasting er låst til husstandens
+  egen mappe.
 
 ---
 
-## Nyttige kommandoer
+## Kommandoer
 
 ```bash
 npm run dev        # utviklingsserver
 npm run build      # produksjonsbygg (type-sjekk + Vite)
-npm run preview    # forhåndsvis produksjonsbygg lokalt
-npm run typecheck  # kun TypeScript-sjekk
+npm run preview    # forhåndsvis bygg
+npm run typecheck  # kun TypeScript
 ```
 
-## Prosjektstruktur
+## Struktur
 
 ```
 src/
-  components/   UI-komponenter (Layout, knapper, kort)
+  components/   Layout, skjema, AI-knapper, diagnose-panel, UI-kit
   context/      AuthContext (session + profil)
-  lib/          Supabase-klient
-  pages/        Login, Onboarding, Planteliste, Mangler-oppsett
-  types/        Database-typer
+  lib/          supabase, ai, photos, care, format
+  pages/        I dag, Planteliste, Detalj, Skjema, Login, Onboarding
+  types/        db- og ai-typer
 supabase/
-  migrations/   SQL for tabeller + RLS
-scripts/        Ikon-generator for PWA
+  migrations/   SQL: tabeller + RLS (0001), storage (0002)
+  functions/    Edge Functions: plant-ai, daily-summary
+  scheduled.sql Cron for daglig e-post
 ```

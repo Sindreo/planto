@@ -42,6 +42,27 @@ export default defineConfig({
         // Cache app-skallet slik at appen laster offline (les-modus). Se SPEC 7.5.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallback: '/index.html',
+        runtimeCaching: [
+          {
+            // Planteliste/data fra Supabase: vis sist hentede data offline.
+            urlPattern: /\/rest\/v1\//,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'planto-data',
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 },
+            },
+          },
+          {
+            // Plantebilder fra Supabase Storage.
+            urlPattern: /\/storage\/v1\/object\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'planto-images',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
       },
       devOptions: {
         enabled: false,
