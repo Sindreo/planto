@@ -89,12 +89,13 @@ forfaller. Den kalles av en daglig cron-jobb.
 
 ```bash
 supabase secrets set RESEND_API_KEY=re_...
-supabase secrets set RESEND_FROM="Planto <onboarding@resend.dev>"
+supabase secrets set RESEND_FROM="Planto <sprout@planto.space>"
 supabase secrets set CRON_SECRET=$(openssl rand -hex 16)   # en tilfeldig hemmelighet
 supabase functions deploy daily-summary
 ```
-> `onboarding@resend.dev` virker for testing. For egen avsenderadresse må du
-> verifisere et domene i Resend.
+> Avsenderen må ligge på et domene du har verifisert i Resend. Mangler du et,
+> kan `Planto <onboarding@resend.dev>` brukes til testing (sender da kun til din
+> egen konto-e-post).
 
 **Planlegg jobben:** åpne `supabase/scheduled.sql`, bytt ut `<PROSJEKT-REF>` og
 `<CRON_SECRET>`, og kjør i SQL Editor. Den kjører kl. 07:00 UTC daglig.
