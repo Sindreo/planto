@@ -128,7 +128,7 @@ function buildEmailHtml(plants: DuePlant[], today: string): string {
 
 async function sendEmail(to: string[], subject: string, html: string): Promise<void> {
   const apiKey = Deno.env.get('RESEND_API_KEY')
-  const from = Deno.env.get('RESEND_FROM') ?? 'Planto <onboarding@resend.dev>'
+  const from = Deno.env.get('RESEND_FROM') ?? 'Planto <sprout@planto.space>'
   if (!apiKey) throw new Error('Mangler RESEND_API_KEY')
 
   const res = await fetch('https://api.resend.com/emails', {
