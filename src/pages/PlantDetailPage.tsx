@@ -4,8 +4,9 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { logWatering } from '../lib/care'
 import { formatDate, formatDateTime, waterStatus, waterStatusLabel } from '../lib/format'
-import type { CareEvent, Plant, Profile } from '../types/db'
+import type { CareEvent, Diagnosis, Plant, Profile } from '../types/db'
 import DiagnosePanel from '../components/DiagnosePanel'
+import DiagnosisCard from '../components/DiagnosisCard'
 import { Button, Spinner } from '../components/ui'
 
 export default function PlantDetailPage() {
@@ -14,6 +15,7 @@ export default function PlantDetailPage() {
   const navigate = useNavigate()
   const [plant, setPlant] = useState<Plant | null>(null)
   const [events, setEvents] = useState<CareEvent[]>([])
+  const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([])
   const [members, setMembers] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -21,19 +23,25 @@ export default function PlantDetailPage() {
 
   const load = useCallback(async () => {
     if (!id) return
-    const [{ data: p, error: pe }, { data: ev }, { data: mem }] = await Promise.all([
+    const [{ data: p, error: pe }, { data: ev }, { data: dg }, { data: mem }] = await Promise.all([
       supabase.from('plants').select('*').eq('id', id).maybeSingle(),
       supabase
         .from('care_events')
         .select('*')
         .eq('plant_id', id)
         .order('created_at', { ascending: false })
-        .limit(20),
+        .limit(50),
+      supabase
+        .from('diagnoses')
+        .select('*')
+        .eq('plant_id', id)
+        .order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, display_name'),
     ])
     if (pe) setError(pe.message)
     setPlant(p)
     setEvents(ev ?? [])
+    setDiagnoses(dg ?? [])
     const map: Record<string, string> = {}
     ;(mem as Pick<Profile, 'id' | 'display_name'>[] | null)?.forEach((m) => {
       map[m.id] = m.display_name ?? 'Noen'
@@ -180,27 +188,13 @@ export default function PlantDetailPage() {
         )}
       </section>
 
-      {/* Bildediagnose */}
-      <DiagnosePanel plant={plant} />
+      {/* Kjør ny diagnose */}
+      <DiagnosePanel plant={plant} onComplete={load} />
 
-      {/* Stell-logg */}
+      {/* Tidslinje: vanning, stell og diagnoser samlet */}
       <section className="rounded-2xl border border-brand-100 bg-white p-4">
-        <h2 className="font-semibold text-gray-900">Stell-logg</h2>
-        {events.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-500">Ingen registrert aktivitet ennå.</p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {events.map((e) => (
-              <li key={e.id} className="flex items-center gap-2 text-sm">
-                <span>{eventIcon(e.type)}</span>
-                <span className="text-gray-700">{eventLabel(e.type)}</span>
-                <span className="text-gray-400">·</span>
-                <span className="text-gray-500">{members[e.user_id] ?? 'Noen'}</span>
-                <span className="ml-auto text-xs text-gray-400">{formatDateTime(e.created_at)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <h2 className="font-semibold text-gray-900">Tidslinje</h2>
+        <Timeline events={events} diagnoses={diagnoses} members={members} />
       </section>
 
       <button
@@ -228,4 +222,47 @@ function eventIcon(type: CareEvent['type']): string {
 }
 function eventLabel(type: CareEvent['type']): string {
   return { watered: 'Vannet', fertilized: 'Gjødslet', repotted: 'Ompottet', note: 'Notat' }[type]
+}
+
+type TimelineItem =
+  | { id: string; created_at: string; kind: 'care'; event: CareEvent }
+  | { id: string; created_at: string; kind: 'diagnosis'; diagnosis: Diagnosis }
+
+function Timeline({
+  events,
+  diagnoses,
+  members,
+}: {
+  events: CareEvent[]
+  diagnoses: Diagnosis[]
+  members: Record<string, string>
+}) {
+  const items: TimelineItem[] = [
+    ...events.map((e): TimelineItem => ({ id: `c-${e.id}`, created_at: e.created_at, kind: 'care', event: e })),
+    ...diagnoses.map((d): TimelineItem => ({ id: `d-${d.id}`, created_at: d.created_at, kind: 'diagnosis', diagnosis: d })),
+  ].sort((a, b) => b.created_at.localeCompare(a.created_at))
+
+  if (items.length === 0) {
+    return <p className="mt-2 text-sm text-gray-500">Ingen aktivitet ennå.</p>
+  }
+
+  return (
+    <ul className="mt-3 space-y-3">
+      {items.map((it) =>
+        it.kind === 'care' ? (
+          <li key={it.id} className="flex items-center gap-2 text-sm">
+            <span>{eventIcon(it.event.type)}</span>
+            <span className="text-gray-700">{eventLabel(it.event.type)}</span>
+            <span className="text-gray-400">·</span>
+            <span className="text-gray-500">{members[it.event.user_id] ?? 'Noen'}</span>
+            <span className="ml-auto text-xs text-gray-400">{formatDateTime(it.event.created_at)}</span>
+          </li>
+        ) : (
+          <li key={it.id}>
+            <DiagnosisCard diagnosis={it.diagnosis} />
+          </li>
+        ),
+      )}
+    </ul>
+  )
 }

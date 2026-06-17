@@ -103,6 +103,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-brand-100 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-2xl">
           <NavTab to="/" label="I dag" icon="📅" />
+          <NavTab to="/diagnose" label="Sjekk" icon="🔬" />
           <NavTab to="/planter" label="Planter" icon="🪴" />
         </div>
       </nav>
