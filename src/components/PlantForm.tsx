@@ -120,6 +120,7 @@ export default function PlantForm({ initial }: Props) {
           </label>
           <IdentifySpeciesButton
             file={photoFile}
+            existingUrl={photoUrl || undefined}
             accessToken={session?.access_token}
             onPick={(name) => setSpecies(name)}
           />

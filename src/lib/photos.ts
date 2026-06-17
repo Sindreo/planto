@@ -8,7 +8,7 @@ const JPEG_QUALITY = 0.82
  * Komprimerer et bilde i nettleseren til maks 1280 px bredde (JPEG) for å
  * spare lagring og redusere token-kostnad ved AI-diagnose (se SPEC 7.2).
  */
-export async function compressImage(file: File): Promise<Blob> {
+export async function compressImage(file: Blob): Promise<Blob> {
   const bitmap = await createImageBitmap(file)
   const scale = Math.min(1, MAX_WIDTH / bitmap.width)
   const width = Math.round(bitmap.width * scale)

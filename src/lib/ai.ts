@@ -4,7 +4,7 @@ import type { CareGuideResult, DiagnosisResult, IdentifyResult } from '../types/
 
 const FUNCTION = 'plant-ai'
 
-async function fileToBase64(file: File): Promise<string> {
+async function fileToBase64(file: Blob): Promise<string> {
   const blob = await compressImage(file)
   const buf = await blob.arrayBuffer()
   let binary = ''
@@ -45,13 +45,16 @@ async function invoke<T>(body: InvokeBody, accessToken?: string): Promise<T> {
   return data as T
 }
 
-/** Plante-ID fra ett bilde → liste med artskandidater. */
+/**
+ * Plante-ID fra ett bilde → liste med artskandidater.
+ * Tar imot enten en nyvalgt fil eller et allerede lagret bilde (Blob).
+ */
 export async function identifySpecies(
-  file: File,
+  image: Blob,
   accessToken?: string,
 ): Promise<IdentifyResult> {
-  const image = await fileToBase64(file)
-  return invoke<IdentifyResult>({ action: 'identify', images: [image] }, accessToken)
+  const data = await fileToBase64(image)
+  return invoke<IdentifyResult>({ action: 'identify', images: [data] }, accessToken)
 }
 
 /**

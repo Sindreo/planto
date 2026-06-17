@@ -9,10 +9,13 @@ import { Alert } from './ui'
  */
 export default function IdentifySpeciesButton({
   file,
+  existingUrl,
   accessToken,
   onPick,
 }: {
   file: File | null
+  /** Allerede lagret bilde på planten – brukes hvis ingen ny fil er valgt. */
+  existingUrl?: string
   accessToken?: string
   onPick: (name: string) => void
 }) {
@@ -21,15 +24,20 @@ export default function IdentifySpeciesButton({
   const [candidates, setCandidates] = useState<SpeciesCandidate[] | null>(null)
 
   async function run() {
-    if (!file) {
-      setError('Velg et bilde først, så kan AI gjette arten.')
-      return
-    }
     setError(null)
     setLoading(true)
     setCandidates(null)
     try {
-      const res = await identifySpecies(file, accessToken)
+      // Bruk nyvalgt fil hvis den finnes, ellers det allerede lagrede bildet.
+      let image: Blob | null = file
+      if (!image && existingUrl) {
+        image = await fetch(existingUrl).then((r) => r.blob())
+      }
+      if (!image) {
+        setError('Velg et bilde først, så kan AI gjette arten.')
+        return
+      }
+      const res = await identifySpecies(image, accessToken)
       setCandidates(res.candidates ?? [])
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
