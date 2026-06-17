@@ -27,8 +27,8 @@ export default function LoginPage() {
         })
         if (error) throw error
         setInfo(
-          'Konto opprettet! Hvis e-postbekreftelse er på, sjekk innboksen din. ' +
-            'Ellers kan du logge inn nå.',
+          'Nesten i mål! Vi har sendt deg en bekreftelses-e-post. ' +
+            'Klikk lenken i den for å aktivere kontoen, så kan du logge inn.',
         )
         setMode('signin')
       } else {
@@ -50,7 +50,9 @@ export default function LoginPage() {
           🌱
         </div>
         <h1 className="text-2xl font-bold text-brand-800">Planto</h1>
-        <p className="text-sm text-gray-600">Hold plantene dine friske – sammen.</p>
+        <p className="text-sm text-gray-600">
+          Friske stueplanter – sammen, uten å glemme vanningen.
+        </p>
       </div>
 
       <Card>
