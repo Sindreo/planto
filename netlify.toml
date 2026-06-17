@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA-fallback: alle ruter serverer index.html slik at React Router fungerer.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

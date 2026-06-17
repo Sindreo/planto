@@ -1,0 +1,9 @@
+# Supabase-konfig for Edge Functions.
+# plant-ai krever innlogget bruker (JWT verifiseres).
+# daily-summary kalles av cron uten bruker-JWT, og beskyttes med CRON_SECRET.
+
+[functions.plant-ai]
+verify_jwt = true
+
+[functions.daily-summary]
+verify_jwt = false
