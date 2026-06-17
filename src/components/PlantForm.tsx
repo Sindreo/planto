@@ -1,15 +1,15 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { uploadPlantPhoto } from '../lib/photos'
 import { linkDiagnosisToPlant } from '../lib/diagnoses'
-import { fillCareGuide } from '../lib/ai'
+import { fillCareGuide, identifySpecies } from '../lib/ai'
 import { upsertSpecies, speciesToGuide } from '../lib/species'
 import { nextDueDate } from '../lib/care'
 import { todayISO } from '../lib/format'
 import type { Plant, Species } from '../types/db'
-import type { CareGuideResult, SpeciesCandidate } from '../types/ai'
+import type { CareGuideResult, DiagnosisResult, SpeciesCandidate } from '../types/ai'
 import { Alert, Button, Checkbox, Input, Textarea } from './ui'
 import IdentifySpeciesButton from './IdentifySpeciesButton'
 import CareGuideButton from './CareGuideButton'
@@ -22,8 +22,14 @@ export default function PlantForm({ initial }: Props) {
   const { profile, session } = useAuth()
   const navigate = useNavigate()
   const routerLocation = useLocation()
-  // Satt når man oppretter en plante fra «Sjekk»-flyten – diagnosen kobles på etterpå.
-  const fromDiagnosisId = (routerLocation.state as { diagnosisId?: string } | null)?.diagnosisId
+  // Satt når man oppretter en plante fra «Sjekk»-flyten – diagnosen kobles på
+  // etterpå, og bildet + vurderingen tas med så feltene kan forhåndsutfylles.
+  const navState = routerLocation.state as
+    | { diagnosisId?: string; photoUrl?: string; diagnosis?: DiagnosisResult }
+    | null
+  const fromDiagnosisId = navState?.diagnosisId
+  const carriedPhotoUrl = navState?.photoUrl ?? ''
+  const carriedDiagnosis = navState?.diagnosis ?? null
   const isEdit = Boolean(initial)
 
   const [nickname, setNickname] = useState(initial?.nickname ?? '')
@@ -31,15 +37,21 @@ export default function PlantForm({ initial }: Props) {
   const [speciesId, setSpeciesId] = useState<string | null>(initial?.species_id ?? null)
   const [location, setLocation] = useState(initial?.location ?? '')
   const [lightNeeds, setLightNeeds] = useState(initial?.light_needs ?? '')
-  const [waterDays, setWaterDays] = useState(numToStr(initial?.water_interval_days))
+  const [waterDays, setWaterDays] = useState(
+    numToStr(initial?.water_interval_days) ||
+      (carriedDiagnosis?.watering_recommendation_days != null
+        ? String(carriedDiagnosis.watering_recommendation_days)
+        : ''),
+  )
   const [fertDays, setFertDays] = useState(numToStr(initial?.fertilize_interval_days))
   const [repotMonths, setRepotMonths] = useState(numToStr(initial?.repot_interval_months))
   const [toxic, setToxic] = useState(initial?.toxic_to_pets ?? false)
   const [notes, setNotes] = useState(initial?.notes ?? '')
 
-  const photoUrl = initial?.photo_url ?? ''
+  // Gjenbruk det allerede opplastede diagnose-bildet som plantens bilde.
+  const photoUrl = initial?.photo_url ?? carriedPhotoUrl
   const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState(initial?.photo_url ?? '')
+  const [photoPreview, setPhotoPreview] = useState(initial?.photo_url ?? carriedPhotoUrl)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -99,6 +111,28 @@ export default function PlantForm({ initial }: Props) {
     setPhotoFile(file)
     setPhotoPreview(file ? URL.createObjectURL(file) : photoUrl)
   }
+
+  // Kom man hit fra «Sjekk en plante» med et bilde, finn arten automatisk fra
+  // bildet slik at art og stell er forhåndsutfylt (kan endres etterpå).
+  const autoIdentified = useRef(false)
+  useEffect(() => {
+    if (isEdit || autoIdentified.current || !carriedPhotoUrl) return
+    autoIdentified.current = true
+    void (async () => {
+      try {
+        setIdentifying(true)
+        const blob = await fetch(carriedPhotoUrl).then((r) => r.blob())
+        const res = await identifySpecies(blob, session?.access_token)
+        const top = res.candidates?.[0]
+        if (top) await handleSpeciesPicked(top)
+      } catch {
+        // Stille – brukeren kan trykke «Finn art» manuelt.
+      } finally {
+        setIdentifying(false)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

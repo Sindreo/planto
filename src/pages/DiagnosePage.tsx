@@ -100,7 +100,17 @@ export default function DiagnosePage() {
           <SaveOptions
             diagnosis={diagnosis}
             onLinked={(plantId) => navigate(`/plants/${plantId}`)}
-            onCreateNew={() => navigate('/plants/new', { state: { diagnosisId: diagnosis.id } })}
+            onCreateNew={() =>
+              navigate('/plants/new', {
+                state: {
+                  diagnosisId: diagnosis.id,
+                  // Ta med bildet og vurderingen videre, så den nye planten
+                  // får bilde + forhåndsutfylt art og stell.
+                  photoUrl: diagnosis.image_urls?.[0],
+                  diagnosis: diagnosis.result_json,
+                },
+              })
+            }
           />
           <button onClick={reset} className="text-sm text-brand-700 hover:underline" type="button">
             ← Ny sjekk
