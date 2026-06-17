@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { uploadPlantPhoto } from '../lib/photos'
+import { fillCareGuide } from '../lib/ai'
 import { nextDueDate } from '../lib/care'
 import { todayISO } from '../lib/format'
 import type { Plant } from '../types/db'
+import type { CareGuideResult } from '../types/ai'
 import { Alert, Button, Checkbox, Input, Textarea } from './ui'
 import IdentifySpeciesButton from './IdentifySpeciesButton'
 import CareGuideButton from './CareGuideButton'
@@ -34,6 +36,36 @@ export default function PlantForm({ initial }: Props) {
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [identifying, setIdentifying] = useState(false)
+  const [autoFilling, setAutoFilling] = useState(false)
+
+  /** Fyll inn et stellguide-felt kun hvis brukeren ikke alt har skrevet noe. */
+  function applyGuide(g: CareGuideResult) {
+    if (g.light_needs && !lightNeeds) setLightNeeds(g.light_needs)
+    if (g.water_interval_days != null && !waterDays) setWaterDays(String(g.water_interval_days))
+    if (g.fertilize_interval_days != null && !fertDays) setFertDays(String(g.fertilize_interval_days))
+    if (g.repot_interval_months != null && !repotMonths) setRepotMonths(String(g.repot_interval_months))
+    if (g.toxic_to_pets != null) setToxic(g.toxic_to_pets)
+    if (g.notes && !notes) setNotes(g.notes)
+  }
+
+  /**
+   * Når en art velges fra «Finn art»: sett arten, foreslå kallenavn hvis tomt,
+   * og fyll ut stellguiden automatisk – minst mulig manuelt arbeid.
+   */
+  async function handleSpeciesPicked(name: string) {
+    setSpecies(name)
+    if (!nickname.trim()) setNickname(name)
+    try {
+      setAutoFilling(true)
+      const guide = await fillCareGuide(name, session?.access_token)
+      applyGuide(guide)
+    } catch {
+      // Stille – brukeren kan trykke «Fyll ut med AI» manuelt ved behov.
+    } finally {
+      setAutoFilling(false)
+    }
+  }
 
   function onPickPhoto(file: File | null) {
     setPhotoFile(file)
@@ -100,11 +132,17 @@ export default function PlantForm({ initial }: Props) {
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Bilde + plante-ID */}
       <div className="flex items-center gap-4">
-        <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-100 text-3xl">
+        <div className="relative grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-100 text-3xl">
           {photoPreview ? (
             <img src={photoPreview} alt="" className="h-full w-full object-cover" />
           ) : (
             '🪴'
+          )}
+          {identifying && (
+            <div className="absolute inset-0 bg-brand-900/25">
+              <div className="absolute inset-x-0 top-0 h-7 animate-scan bg-gradient-to-b from-transparent via-white/85 to-transparent" />
+              <div className="absolute inset-0 ring-2 ring-inset ring-brand-300/70" />
+            </div>
           )}
         </div>
         <div className="space-y-2">
@@ -122,7 +160,8 @@ export default function PlantForm({ initial }: Props) {
             file={photoFile}
             existingUrl={photoUrl || undefined}
             accessToken={session?.access_token}
-            onPick={(name) => setSpecies(name)}
+            onPick={handleSpeciesPicked}
+            onLoadingChange={setIdentifying}
           />
         </div>
       </div>
@@ -155,7 +194,15 @@ export default function PlantForm({ initial }: Props) {
 
       <div className="rounded-2xl border border-brand-100 bg-brand-50/50 p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-brand-800">Stellguide</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-brand-800">
+            Stellguide
+            {autoFilling && (
+              <span className="inline-flex items-center gap-1 text-xs font-normal text-brand-600">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
+                fyller ut…
+              </span>
+            )}
+          </h3>
           <CareGuideButton
             species={species}
             accessToken={session?.access_token}

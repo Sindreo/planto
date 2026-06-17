@@ -18,6 +18,16 @@ export default {
       fontFamily: {
         sans: ['system-ui', 'Avenir', 'Helvetica', 'Arial', 'sans-serif'],
       },
+      keyframes: {
+        // Skannelinje som sveiper over bildet mens AI finner arten.
+        scan: {
+          '0%': { transform: 'translateY(-120%)' },
+          '100%': { transform: 'translateY(420%)' },
+        },
+      },
+      animation: {
+        scan: 'scan 1.3s ease-in-out infinite',
+      },
     },
   },
   plugins: [],
