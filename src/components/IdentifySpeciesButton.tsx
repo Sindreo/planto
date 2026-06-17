@@ -9,32 +9,45 @@ import { Alert } from './ui'
  */
 export default function IdentifySpeciesButton({
   file,
+  existingUrl,
   accessToken,
   onPick,
+  onLoadingChange,
 }: {
   file: File | null
+  /** Allerede lagret bilde på planten – brukes hvis ingen ny fil er valgt. */
+  existingUrl?: string
   accessToken?: string
   onPick: (name: string) => void
+  /** Varsler forelderen om lasting, slik at bildet kan animeres. */
+  onLoadingChange?: (loading: boolean) => void
 }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [candidates, setCandidates] = useState<SpeciesCandidate[] | null>(null)
 
   async function run() {
-    if (!file) {
-      setError('Velg et bilde først, så kan AI gjette arten.')
-      return
-    }
     setError(null)
     setLoading(true)
+    onLoadingChange?.(true)
     setCandidates(null)
     try {
-      const res = await identifySpecies(file, accessToken)
+      // Bruk nyvalgt fil hvis den finnes, ellers det allerede lagrede bildet.
+      let image: Blob | null = file
+      if (!image && existingUrl) {
+        image = await fetch(existingUrl).then((r) => r.blob())
+      }
+      if (!image) {
+        setError('Velg et bilde først, så kan AI finne arten.')
+        return
+      }
+      const res = await identifySpecies(image, accessToken)
       setCandidates(res.candidates ?? [])
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
+      onLoadingChange?.(false)
     }
   }
 
@@ -46,7 +59,7 @@ export default function IdentifySpeciesButton({
         disabled={loading}
         className="inline-flex items-center gap-1.5 rounded-xl bg-brand-100 px-3 py-2 text-sm font-medium text-brand-800 hover:bg-brand-200 disabled:opacity-50"
       >
-        ✨ {loading ? 'Analyserer…' : 'Gjett art fra bilde'}
+        ✨ {loading ? 'Finner art…' : 'Finn art'}
       </button>
 
       {error && <Alert tone="error">{error}</Alert>}
