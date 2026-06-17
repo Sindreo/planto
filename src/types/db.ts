@@ -11,6 +11,19 @@ export type Household = {
   created_at: string
 }
 
+export type Species = {
+  id: string
+  latin_name: string
+  common_name: string | null
+  light_needs: string | null
+  water_interval_days: number | null
+  fertilize_interval_days: number | null
+  repot_interval_months: number | null
+  toxic_to_pets: boolean | null
+  notes: string | null
+  created_at: string
+}
+
 export type Profile = {
   id: string
   household_id: string | null
@@ -23,6 +36,7 @@ export type Plant = {
   household_id: string
   nickname: string
   species: string | null
+  species_id: string | null
   location: string | null
   photo_url: string | null
   light_needs: string | null
@@ -66,11 +80,25 @@ export interface Database {
       plants: { Row: Plant; Insert: Partial<Plant>; Update: Partial<Plant>; Relationships: [] }
       care_events: { Row: CareEvent; Insert: Partial<CareEvent>; Update: Partial<CareEvent>; Relationships: [] }
       diagnoses: { Row: Diagnosis; Insert: Partial<Diagnosis>; Update: Partial<Diagnosis>; Relationships: [] }
+      species: { Row: Species; Insert: Partial<Species>; Update: Partial<Species>; Relationships: [] }
     }
     Views: { [_ in never]: never }
     Functions: {
       create_household: { Args: { p_name: string }; Returns: string }
       join_household: { Args: { p_invite_code: string }; Returns: string }
+      upsert_species: {
+        Args: {
+          p_latin_name: string
+          p_common_name?: string | null
+          p_light_needs?: string | null
+          p_water_interval_days?: number | null
+          p_fertilize_interval_days?: number | null
+          p_repot_interval_months?: number | null
+          p_toxic_to_pets?: boolean | null
+          p_notes?: string | null
+        }
+        Returns: string
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

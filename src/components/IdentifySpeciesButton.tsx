@@ -18,7 +18,7 @@ export default function IdentifySpeciesButton({
   /** Allerede lagret bilde på planten – brukes hvis ingen ny fil er valgt. */
   existingUrl?: string
   accessToken?: string
-  onPick: (name: string) => void
+  onPick: (candidate: SpeciesCandidate) => void
   /** Varsler forelderen om lasting, slik at bildet kan animeres. */
   onLoadingChange?: (loading: boolean) => void
 }) {
@@ -75,7 +75,7 @@ export default function IdentifySpeciesButton({
               <button
                 type="button"
                 onClick={() => {
-                  onPick(c.name)
+                  onPick(c)
                   setCandidates(null)
                 }}
                 className="w-full rounded-xl border border-brand-100 bg-white px-3 py-2 text-left text-sm hover:border-brand-300"
