@@ -5,13 +5,15 @@ import { useAuth } from '../context/AuthContext'
 import { uploadPlantPhoto } from '../lib/photos'
 import { linkDiagnosisToPlant } from '../lib/diagnoses'
 import { fillCareGuide } from '../lib/ai'
+import { upsertSpecies, speciesToGuide } from '../lib/species'
 import { nextDueDate } from '../lib/care'
 import { todayISO } from '../lib/format'
-import type { Plant } from '../types/db'
-import type { CareGuideResult } from '../types/ai'
+import type { Plant, Species } from '../types/db'
+import type { CareGuideResult, SpeciesCandidate } from '../types/ai'
 import { Alert, Button, Checkbox, Input, Textarea } from './ui'
 import IdentifySpeciesButton from './IdentifySpeciesButton'
 import CareGuideButton from './CareGuideButton'
+import SpeciesSelect from './SpeciesSelect'
 
 type Props = { initial?: Plant }
 
@@ -26,6 +28,7 @@ export default function PlantForm({ initial }: Props) {
 
   const [nickname, setNickname] = useState(initial?.nickname ?? '')
   const [species, setSpecies] = useState(initial?.species ?? '')
+  const [speciesId, setSpeciesId] = useState<string | null>(initial?.species_id ?? null)
   const [location, setLocation] = useState(initial?.location ?? '')
   const [lightNeeds, setLightNeeds] = useState(initial?.light_needs ?? '')
   const [waterDays, setWaterDays] = useState(numToStr(initial?.water_interval_days))
@@ -55,20 +58,41 @@ export default function PlantForm({ initial }: Props) {
 
   /**
    * Når en art velges fra «Finn art»: sett arten, foreslå kallenavn hvis tomt,
-   * og fyll ut stellguiden automatisk – minst mulig manuelt arbeid.
+   * fyll ut stellguiden automatisk, og legg/berik arten i det delte registeret.
    */
-  async function handleSpeciesPicked(name: string) {
+  async function handleSpeciesPicked(candidate: SpeciesCandidate) {
+    const name = candidate.name
     setSpecies(name)
     if (!nickname.trim()) setNickname(name)
     try {
       setAutoFilling(true)
+      // Registrer arten med en gang (uten stell), så vi har en id.
+      if (candidate.latin_name?.trim()) {
+        const id = await upsertSpecies({
+          latinName: candidate.latin_name,
+          commonName: name,
+        })
+        setSpeciesId(id)
+      }
       const guide = await fillCareGuide(name, session?.access_token)
       applyGuide(guide)
+      // Berik registeret med stellguiden, så neste gang slipper man AI-kallet.
+      if (candidate.latin_name?.trim()) {
+        await upsertSpecies({ latinName: candidate.latin_name, commonName: name, guide })
+      }
     } catch {
       // Stille – brukeren kan trykke «Fyll ut med AI» manuelt ved behov.
     } finally {
       setAutoFilling(false)
     }
+  }
+
+  /** Når en art velges fra registeret: koble til og fyll stellguiden fra arten. */
+  function handleSpeciesSelected(s: Species) {
+    setSpecies(s.common_name ?? s.latin_name)
+    setSpeciesId(s.id)
+    if (!nickname.trim()) setNickname(s.common_name ?? s.latin_name)
+    applyGuide(speciesToGuide(s))
   }
 
   function onPickPhoto(file: File | null) {
@@ -92,6 +116,7 @@ export default function PlantForm({ initial }: Props) {
         household_id: profile.household_id,
         nickname: nickname.trim(),
         species: emptyToNull(species),
+        species_id: speciesId,
         location: emptyToNull(location),
         light_needs: emptyToNull(lightNeeds),
         water_interval_days: water,
@@ -186,16 +211,15 @@ export default function PlantForm({ initial }: Props) {
         required
       />
 
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
-          <Input
-            label="Art / type"
-            placeholder="F.eks. Monstera deliciosa"
-            value={species}
-            onChange={(e) => setSpecies(e.target.value)}
-          />
-        </div>
-      </div>
+      <SpeciesSelect
+        value={species}
+        onChange={(text) => {
+          setSpecies(text)
+          // Fri redigering bryter koblingen til registeret.
+          setSpeciesId(null)
+        }}
+        onSelectSpecies={handleSpeciesSelected}
+      />
 
       <Input
         label="Plassering / rom"
