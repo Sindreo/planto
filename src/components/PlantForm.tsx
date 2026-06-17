@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { uploadPlantPhoto } from '../lib/photos'
+import { linkDiagnosisToPlant } from '../lib/diagnoses'
 import { fillCareGuide } from '../lib/ai'
 import { nextDueDate } from '../lib/care'
 import { todayISO } from '../lib/format'
@@ -18,6 +19,9 @@ type Props = { initial?: Plant }
 export default function PlantForm({ initial }: Props) {
   const { profile, session } = useAuth()
   const navigate = useNavigate()
+  const routerLocation = useLocation()
+  // Satt når man oppretter en plante fra «Sjekk»-flyten – diagnosen kobles på etterpå.
+  const fromDiagnosisId = (routerLocation.state as { diagnosisId?: string } | null)?.diagnosisId
   const isEdit = Boolean(initial)
 
   const [nickname, setNickname] = useState(initial?.nickname ?? '')
@@ -119,6 +123,14 @@ export default function PlantForm({ initial }: Props) {
           .select()
           .single()
         if (error) throw error
+        // Kom man hit fra en løs diagnose, knytt den til den nye planten.
+        if (fromDiagnosisId) {
+          try {
+            await linkDiagnosisToPlant(fromDiagnosisId, data.id)
+          } catch {
+            // Ikke kritisk – planten er opprettet uansett.
+          }
+        }
         navigate(`/plants/${data.id}`)
       }
     } catch (err) {
