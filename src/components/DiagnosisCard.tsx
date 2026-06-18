@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useState, type ComponentType } from 'react'
 import { formatDateTime } from '../lib/format'
 import type { Diagnosis } from '../types/db'
 import type { DiagnosisResult } from '../types/ai'
+import { Alert as WarnIcon, Drop, Leaf, Lens, PlantMark } from './icons'
+
+type IconComponent = ComponentType<{ className?: string }>
 
 /**
  * Viser én lagret diagnose. Det viktigste (frisk/syk + neste tiltak) vises
@@ -27,7 +30,7 @@ export default function DiagnosisCard({
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
       {/* Blikkfanger: status */}
       <div className={`flex items-center gap-3 px-4 py-3 ${status.bg}`}>
-        <span className="text-2xl">{status.emoji}</span>
+        <status.Icon className={`h-6 w-6 shrink-0 ${status.text}`} />
         <div className="min-w-0">
           <p className={`text-base font-bold leading-tight ${status.text}`}>{status.label}</p>
           {primaryIssue && (
@@ -50,8 +53,9 @@ export default function DiagnosisCard({
             </p>
             {nextAction && <p className="mt-1 text-sm text-gray-800">{nextAction}</p>}
             {waterDays != null && (
-              <p className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-brand-800">
-                💧 Vann igjen om ca. {waterDays} {waterDays === 1 ? 'dag' : 'dager'}
+              <p className="mt-1 inline-flex items-center gap-1.5 text-sm font-medium text-brand-800">
+                <Drop className="h-4 w-4" />
+                Vann igjen om ca. {waterDays} {waterDays === 1 ? 'dag' : 'dager'}
               </p>
             )}
           </div>
@@ -113,7 +117,7 @@ export default function DiagnosisCard({
 
 function statusFor(result: DiagnosisResult | null): {
   label: string
-  emoji: string
+  Icon: IconComponent
   bg: string
   text: string
 } {
@@ -121,13 +125,13 @@ function statusFor(result: DiagnosisResult | null): {
   const hasIssues = (result?.likely_issues?.length ?? 0) > 0
 
   if (health.includes('dårlig') || health.includes('darlig')) {
-    return { label: 'Trenger hjelp', emoji: '🔴', bg: 'bg-red-50', text: 'text-red-700' }
+    return { label: 'Trenger hjelp', Icon: WarnIcon, bg: 'bg-red-50', text: 'text-red-700' }
   }
   if (health.includes('middels')) {
-    return { label: 'Følg med', emoji: '🟡', bg: 'bg-amber-50', text: 'text-amber-800' }
+    return { label: 'Følg med', Icon: Lens, bg: 'bg-amber-50', text: 'text-amber-800' }
   }
   if (health.includes('god') || (!hasIssues && health)) {
-    return { label: 'Ser frisk ut', emoji: '🌿', bg: 'bg-brand-50', text: 'text-brand-800' }
+    return { label: 'Ser frisk ut', Icon: Leaf, bg: 'bg-brand-50', text: 'text-brand-800' }
   }
-  return { label: 'Vurdert', emoji: '🪴', bg: 'bg-gray-50', text: 'text-gray-700' }
+  return { label: 'Vurdert', Icon: PlantMark, bg: 'bg-gray-50', text: 'text-gray-700' }
 }

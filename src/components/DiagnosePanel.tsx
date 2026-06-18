@@ -4,6 +4,7 @@ import { diagnosePlant } from '../lib/ai'
 import { uploadPlantPhoto } from '../lib/photos'
 import type { Plant } from '../types/db'
 import { Alert, Button, Spinner } from './ui'
+import { Sparkle } from './icons'
 
 /**
  * «Kjør ny bildediagnose» for en plante (4.3 i SPEC). Velg 1–3 bilder, send
@@ -85,7 +86,8 @@ export default function DiagnosePanel({
             <span className="text-sm text-gray-600">{files.length} bilde(r) valgt</span>
           )}
           <Button type="button" onClick={run} disabled={files.length === 0}>
-            ✨ Kjør diagnose
+            <Sparkle className="h-4 w-4" />
+            Kjør diagnose
           </Button>
         </div>
       )}

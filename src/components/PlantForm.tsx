@@ -14,6 +14,7 @@ import { Alert, Button, Checkbox, Input, Textarea } from './ui'
 import IdentifySpeciesButton from './IdentifySpeciesButton'
 import CareGuideButton from './CareGuideButton'
 import SpeciesSelect from './SpeciesSelect'
+import { PlantMark } from './icons'
 
 type Props = { initial?: Plant }
 
@@ -207,7 +208,7 @@ export default function PlantForm({ initial }: Props) {
           {photoPreview ? (
             <img src={photoPreview} alt="" className="h-full w-full object-cover" />
           ) : (
-            '🪴'
+            <PlantMark className="h-8 w-8 text-brand-500" />
           )}
           {identifying && (
             <div className="absolute inset-0 bg-brand-900/25">

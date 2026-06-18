@@ -8,6 +8,7 @@ import { fetchLatestLooseDiagnosis, linkDiagnosisToPlant } from '../lib/diagnose
 import type { Diagnosis, Plant } from '../types/db'
 import { Alert, Button, Spinner } from '../components/ui'
 import DiagnosisCard from '../components/DiagnosisCard'
+import { ArrowLeft, Camera, PlantMark, Sparkle } from '../components/icons'
 
 /**
  * Standalone bildediagnose – «botaniker-støtte» uten å registrere planten først.
@@ -68,7 +69,7 @@ export default function DiagnosePage() {
       {!diagnosis ? (
         <div className="space-y-4">
           <label className="flex aspect-video cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-brand-200 bg-white/60 text-center">
-            <span className="text-4xl">📷</span>
+            <Camera className="h-9 w-9 text-brand-600" />
             <span className="text-sm font-medium text-brand-800">
               {files.length > 0 ? `${files.length} bilde(r) valgt` : 'Trykk for å velge 1–3 bilder'}
             </span>
@@ -90,7 +91,8 @@ export default function DiagnosePage() {
             </div>
           ) : (
             <Button onClick={run} disabled={files.length === 0} className="w-full">
-              ✨ Sjekk planten
+              <Sparkle className="h-4 w-4" />
+              Sjekk planten
             </Button>
           )}
         </div>
@@ -112,8 +114,13 @@ export default function DiagnosePage() {
               })
             }
           />
-          <button onClick={reset} className="text-sm text-brand-700 hover:underline" type="button">
-            ← Ny sjekk
+          <button
+            onClick={reset}
+            className="inline-flex items-center gap-1 text-sm text-brand-700 hover:underline"
+            type="button"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Ny sjekk
           </button>
         </div>
       )}
@@ -191,7 +198,7 @@ function SaveOptions({
                       {p.photo_url ? (
                         <img src={p.photo_url} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        '🪴'
+                        <PlantMark className="h-5 w-5 text-brand-500" />
                       )}
                     </span>
                     <span className="min-w-0">
