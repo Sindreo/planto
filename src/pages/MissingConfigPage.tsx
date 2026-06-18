@@ -1,4 +1,5 @@
 import { Card } from '../components/ui'
+import { PlantoMark } from '../components/icons'
 
 /**
  * Vises hvis frontend mangler Supabase-nøkler. Gir konkrete steg slik at en
@@ -8,7 +9,12 @@ export default function MissingConfigPage() {
   return (
     <div className="mx-auto flex min-h-full max-w-lg items-center p-4">
       <Card>
-        <h1 className="text-xl font-bold text-brand-800">🌱 Planto er nesten klar</h1>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600">
+            <PlantoMark className="h-5 w-5 text-white" />
+          </span>
+          <h1 className="text-xl font-bold text-brand-800">Planto er nesten klar</h1>
+        </div>
         <p className="mt-2 text-sm text-gray-600">
           Appen mangler tilkobling til Supabase. Gjør dette én gang:
         </p>

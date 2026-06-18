@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import type { Household } from '../types/db'
+import { Calendar, Lens, PlantMark, PlantoMark } from './icons'
 
 /**
  * App-skall for innloggede brukere: topplinje med husstandsinfo,
@@ -33,11 +34,14 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-10 border-b border-brand-100 bg-white/90 backdrop-blur">
+      <header
+        className="sticky top-0 z-10 border-b border-brand-100 bg-white/90 backdrop-blur"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <div className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-lg">
-              🌱
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600">
+              <PlantoMark className="h-5 w-5 text-white" />
             </span>
             <div className="leading-tight">
               <p className="font-bold text-brand-800">Planto</p>
@@ -97,14 +101,22 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       <OfflineBanner />
 
-      <main className="mx-auto max-w-2xl px-4 py-6 pb-24">{children}</main>
+      <main
+        className="mx-auto max-w-2xl px-4 py-6"
+        style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom))' }}
+      >
+        {children}
+      </main>
 
       {/* Bunn-navigasjon (mobil-først) */}
-      <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-brand-100 bg-white/95 backdrop-blur">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-10 border-t border-brand-100 bg-white/95 backdrop-blur"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         <div className="mx-auto flex max-w-2xl">
-          <NavTab to="/" label="I dag" icon="📅" />
-          <NavTab to="/diagnose" label="Sjekk" icon="🔬" />
-          <NavTab to="/planter" label="Planter" icon="🪴" />
+          <NavTab to="/" label="I dag" icon={<Calendar className="h-6 w-6" />} />
+          <NavTab to="/diagnose" label="Sjekk" icon={<Lens className="h-6 w-6" />} />
+          <NavTab to="/planter" label="Planter" icon={<PlantMark className="h-6 w-6" />} />
         </div>
       </nav>
     </div>
@@ -131,7 +143,7 @@ function OfflineBanner() {
   )
 }
 
-function NavTab({ to, label, icon }: { to: string; label: string; icon: string }) {
+function NavTab({ to, label, icon }: { to: string; label: string; icon: ReactNode }) {
   return (
     <NavLink
       to={to}
@@ -142,7 +154,7 @@ function NavTab({ to, label, icon }: { to: string; label: string; icon: string }
         }`
       }
     >
-      <span className="text-lg">{icon}</span>
+      {icon}
       {label}
     </NavLink>
   )
