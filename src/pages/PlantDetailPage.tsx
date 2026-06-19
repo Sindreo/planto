@@ -11,7 +11,7 @@ import DiagnosePanel from '../components/DiagnosePanel'
 import DiagnosisCard from '../components/DiagnosisCard'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { Button, Spinner } from '../components/ui'
-import { ArrowLeft, Drop, Leaf, Note, Pin, PlantMark } from '../components/icons'
+import { ArrowLeft, Close, Drop, Leaf, Note, Pin, PlantMark } from '../components/icons'
 
 export default function PlantDetailPage() {
   const { id } = useParams()
@@ -61,6 +61,16 @@ export default function PlantDetailPage() {
     load()
   }, [load])
   useRefetchOnFocus(load)
+
+  // Lukk fullskjerm-bildet med Escape.
+  useEffect(() => {
+    if (!lightbox) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(false)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [lightbox])
 
   async function handleWatered() {
     if (!plant || !session?.user) return
@@ -263,7 +273,17 @@ export default function PlantDetailPage() {
           onClick={() => setLightbox(false)}
           role="dialog"
           aria-modal="true"
+          aria-label={`Bilde av ${plant.nickname}`}
         >
+          <button
+            type="button"
+            onClick={() => setLightbox(false)}
+            aria-label="Lukk"
+            className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/15 text-white hover:bg-white/25"
+            style={{ top: 'calc(1rem + env(safe-area-inset-top))' }}
+          >
+            <Close className="h-5 w-5" />
+          </button>
           <img
             src={plant.photo_url}
             alt={plant.nickname}
@@ -278,7 +298,7 @@ export default function PlantDetailPage() {
 function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-gray-400">{label}</dt>
+      <dt className="text-xs uppercase tracking-wide text-gray-500">{label}</dt>
       <dd className="text-gray-800">{value ?? '–'}</dd>
     </div>
   )
@@ -332,7 +352,7 @@ function Timeline({
             <span className="text-gray-700">{eventLabel(it.event.type)}</span>
             <span className="text-gray-400">·</span>
             <span className="text-gray-500">{members[it.event.user_id] ?? 'Noen'}</span>
-            <span className="ml-auto text-xs text-gray-400">{formatDateTime(it.event.created_at)}</span>
+            <span className="ml-auto text-xs text-gray-500">{formatDateTime(it.event.created_at)}</span>
           </li>
         ) : (
           <li key={it.id}>
