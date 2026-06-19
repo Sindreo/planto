@@ -22,6 +22,9 @@ export interface DiagnosisIssue {
 export interface DiagnosisResult {
   likely_issues: DiagnosisIssue[]
   overall_health: string
+  /** Valgfritt strukturert helsenivå. Brukes om det finnes; ellers utledes
+   *  status fra overall_health-teksten og funnene. */
+  health?: 'god' | 'middels' | 'dårlig' | null
   actions: string[]
   watering_recommendation_days: number | null
   notes: string

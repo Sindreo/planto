@@ -42,12 +42,14 @@ export function waterStatus(plant: Pick<Plant, 'next_water_due'>): WaterStatus {
 
 export function waterStatusLabel(plant: Pick<Plant, 'next_water_due'>): string {
   switch (waterStatus(plant)) {
-    case 'overdue':
-      return 'På etterskudd'
+    case 'overdue': {
+      const days = daysBetween(plant.next_water_due!, todayISO()) // i dag − forfall
+      return `På etterskudd (${days} ${days === 1 ? 'dag' : 'dager'})`
+    }
     case 'due_today':
       return 'Skal vannes i dag'
     case 'upcoming':
-      return `Vannes ${formatDate(plant.next_water_due)}`
+      return `Vannes ${relativeDay(plant.next_water_due)}`
     default:
       return 'Ingen vanneplan'
   }
@@ -55,7 +57,21 @@ export function waterStatusLabel(plant: Pick<Plant, 'next_water_due'>): string {
 
 /** Antall dager mellom to ISO-datoer (b - a). */
 export function daysBetween(aISO: string, bISO: string): number {
-  const a = new Date(aISO + 'T00:00:00')
-  const b = new Date(bISO + 'T00:00:00')
+  const a = new Date(aISO.slice(0, 10) + 'T00:00:00')
+  const b = new Date(bISO.slice(0, 10) + 'T00:00:00')
   return Math.round((b.getTime() - a.getTime()) / 86_400_000)
+}
+
+/**
+ * Vennlig, relativ dag-tekst: «i dag», «i morgen», «i går», «om 3 dager»,
+ * «for 2 dager siden». Tar både YYYY-MM-DD og full ISO-tidsstempel.
+ */
+export function relativeDay(value: string | null): string {
+  if (!value) return '–'
+  const diff = daysBetween(todayISO(), value) // mål − i dag
+  if (diff === 0) return 'i dag'
+  if (diff === 1) return 'i morgen'
+  if (diff === -1) return 'i går'
+  if (diff > 1) return `om ${diff} dager`
+  return `for ${Math.abs(diff)} dager siden`
 }
