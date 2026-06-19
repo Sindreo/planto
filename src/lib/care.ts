@@ -4,10 +4,13 @@ import type { CareEventType } from '../types/db'
 
 /**
  * Beregner neste forfallsdato (YYYY-MM-DD) fra et utgangspunkt + intervall.
+ * Regner i UTC for å unngå at lokal tidssone forskyver datoen: i tidssoner
+ * foran UTC ville lokal midnatt mappes til forrige dag ved toISOString, og
+ * intervallet ble dermed én dag for kort.
  */
 export function nextDueDate(fromISODate: string, intervalDays: number): string {
-  const d = new Date(fromISODate + 'T00:00:00')
-  d.setDate(d.getDate() + intervalDays)
+  const d = new Date(fromISODate.slice(0, 10) + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + intervalDays)
   return d.toISOString().slice(0, 10)
 }
 
