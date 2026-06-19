@@ -103,6 +103,11 @@ export function Spinner({ label }: { label?: string }) {
   )
 }
 
+/** Pulserende plassholder for lasteoppsett (skeleton). */
+export function Skeleton({ className = '' }: { className?: string }) {
+  return <div className={`animate-pulse rounded-xl bg-brand-100/70 ${className}`} />
+}
+
 export function Alert({
   children,
   tone = 'error',
