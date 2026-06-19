@@ -101,18 +101,25 @@ function buildEmailHtml(plants: DuePlant[], today: string): string {
   const overdue = plants.filter((p) => p.next_water_due < today)
   const dueToday = plants.filter((p) => p.next_water_due === today)
 
-  const section = (title: string, list: DuePlant[]) =>
-    list.length === 0
-      ? ''
-      : `<h3 style="margin:16px 0 8px;color:#166534">${title}</h3>
-         <ul style="margin:0;padding-left:18px;color:#374151">
-           ${list
-             .map(
-               (p) =>
-                 `<li>${escapeHtml(p.nickname)}${p.location ? ` <span style="color:#9ca3af">(${escapeHtml(p.location)})</span>` : ''}</li>`,
-             )
-             .join('')}
-         </ul>`
+  const list = (arr: DuePlant[]) =>
+    `<ul style="margin:0;padding-left:18px;color:#374151">
+       ${arr
+         .map(
+           (p) =>
+             `<li>${escapeHtml(p.nickname)}${p.location ? ` <span style="color:#9ca3af">(${escapeHtml(p.location)})</span>` : ''}</li>`,
+         )
+         .join('')}
+     </ul>`
+
+  const heading = (title: string) =>
+    `<h3 style="margin:16px 0 8px;color:#166534">${title}</h3>`
+
+  // Vis kategori-overskrifter bare når begge gruppene finnes – ellers blir de
+  // bare en redundant gjentakelse av introteksten.
+  const body =
+    overdue.length > 0 && dueToday.length > 0
+      ? heading('På etterskudd') + list(overdue) + heading('Forfaller i dag') + list(dueToday)
+      : list([...overdue, ...dueToday])
 
   return `
   <div style="font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;max-width:480px;margin:0 auto;padding:8px">
@@ -128,9 +135,8 @@ function buildEmailHtml(plants: DuePlant[], today: string): string {
       </tr>
     </table>
     <h2 style="color:#16a34a;margin:12px 0 4px">God morgen!</h2>
-    <p style="color:#374151">Disse plantene trenger vann i dag:</p>
-    ${section('På etterskudd', overdue)}
-    ${section('Forfaller i dag', dueToday)}
+    <p style="color:#374151">Disse plantene trenger vann:</p>
+    ${body}
     <p style="margin-top:20px;color:#6b7280;font-size:13px">
       Åpne Planto og trykk «Vannet i dag» når du er ferdig.
     </p>
