@@ -48,6 +48,8 @@ export default function PlantForm({ initial }: Props) {
   const [repotMonths, setRepotMonths] = useState(numToStr(initial?.repot_interval_months))
   const [toxic, setToxic] = useState(initial?.toxic_to_pets ?? false)
   const [notes, setNotes] = useState(initial?.notes ?? '')
+  // Lar brukeren overstyre når planten skal vannes neste gang.
+  const [nextWaterDue, setNextWaterDue] = useState(initial?.next_water_due?.slice(0, 10) ?? '')
 
   // Gjenbruk det allerede opplastede diagnose-bildet som plantens bilde.
   const photoUrl = initial?.photo_url ?? carriedPhotoUrl
@@ -162,12 +164,21 @@ export default function PlantForm({ initial }: Props) {
         photo_url: finalPhotoUrl || null,
       }
 
-      if (isEdit && initial) {
-        // Hvis vanneintervall finnes men ingen forfallsdato er satt, beregn en.
-        const next =
+      // Neste vanning: brukerens eksplisitte dato vinner, ellers behold/auto-beregn.
+      let next: string | null
+      if (nextWaterDue) {
+        next = nextWaterDue
+      } else if (isEdit && initial) {
+        // Har intervall men ingen forfallsdato? Beregn fra sist vannet/i dag.
+        next =
           water && !initial.next_water_due
             ? nextDueDate(initial.last_watered_at?.slice(0, 10) ?? todayISO(), water)
             : initial.next_water_due
+      } else {
+        next = water ? nextDueDate(todayISO(), water) : null
+      }
+
+      if (isEdit && initial) {
         const { error } = await supabase
           .from('plants')
           .update({ ...row, next_water_due: next })
@@ -175,8 +186,6 @@ export default function PlantForm({ initial }: Props) {
         if (error) throw error
         navigate(`/plants/${initial.id}`)
       } else {
-        // Ny plante: regn forfallsdato fra i dag hvis intervall er satt.
-        const next = water ? nextDueDate(todayISO(), water) : null
         const { data, error } = await supabase
           .from('plants')
           .insert({ ...row, next_water_due: next })
@@ -319,6 +328,29 @@ export default function PlantForm({ initial }: Props) {
               value={repotMonths}
               onChange={(e) => setRepotMonths(e.target.value)}
             />
+          </div>
+          <div>
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-gray-700">Neste vanning</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={nextWaterDue}
+                  onChange={(e) => setNextWaterDue(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200 sm:text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setNextWaterDue(todayISO())}
+                  className="shrink-0 rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50"
+                >
+                  I dag
+                </button>
+              </div>
+            </label>
+            <p className="mt-1 text-xs text-gray-500">
+              Overstyrer vanneplanen. La stå tom for å bruke vanne-intervallet automatisk.
+            </p>
           </div>
           <Checkbox label="Giftig for kjæledyr" checked={toxic} onChange={setToxic} />
           <Textarea
