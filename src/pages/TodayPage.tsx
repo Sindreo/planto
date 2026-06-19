@@ -6,7 +6,7 @@ import { logWatering, undoWatering } from '../lib/care'
 import { todayISO, waterStatus } from '../lib/format'
 import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
 import type { Plant } from '../types/db'
-import { Spinner } from '../components/ui'
+import { Skeleton } from '../components/ui'
 import { useToast } from '../components/Toast'
 import { Check, Drop, PlantMark } from '../components/icons'
 
@@ -80,9 +80,21 @@ export default function TodayPage() {
       <p className="mb-6 text-sm text-gray-500">Hva som trenger vann nå.</p>
 
       {loading ? (
-        <div className="grid place-items-center py-16">
-          <Spinner label="Laster…" />
-        </div>
+        <ul className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <li
+              key={i}
+              className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm"
+            >
+              <Skeleton className="h-12 w-12 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+              <Skeleton className="h-9 w-20 shrink-0" />
+            </li>
+          ))}
+        </ul>
       ) : plants.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-brand-200 bg-white/60 p-10 text-center">
           <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-brand-100 text-brand-600">

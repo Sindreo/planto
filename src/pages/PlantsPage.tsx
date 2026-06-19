@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { waterStatus, waterStatusLabel } from '../lib/format'
 import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
 import type { Plant } from '../types/db'
-import { Button, Spinner } from '../components/ui'
+import { Button, Skeleton } from '../components/ui'
 import { PlantMark, Plus } from '../components/icons'
 
 export default function PlantsPage() {
@@ -43,9 +43,20 @@ export default function PlantsPage() {
       </div>
 
       {loading ? (
-        <div className="grid place-items-center py-16">
-          <Spinner label="Henter planter…" />
-        </div>
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <li
+              key={i}
+              className="overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm"
+            >
+              <Skeleton className="aspect-square w-full rounded-none" />
+              <div className="space-y-2 p-3">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </li>
+          ))}
+        </ul>
       ) : error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           Klarte ikke å hente planter: {error}

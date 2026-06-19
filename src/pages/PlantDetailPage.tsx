@@ -9,6 +9,7 @@ import { useToast } from '../components/Toast'
 import type { CareEvent, Diagnosis, Plant, Profile } from '../types/db'
 import DiagnosePanel from '../components/DiagnosePanel'
 import DiagnosisCard from '../components/DiagnosisCard'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { Button, Spinner } from '../components/ui'
 import { ArrowLeft, Drop, Leaf, Note, Pin, PlantMark } from '../components/icons'
 
@@ -24,6 +25,8 @@ export default function PlantDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [watering, setWatering] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [lightbox, setLightbox] = useState(false)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -94,7 +97,7 @@ export default function PlantDetailPage() {
 
   async function handleDelete() {
     if (!plant) return
-    if (!confirm(`Slette «${plant.nickname}»? Dette kan ikke angres.`)) return
+    setConfirmDelete(false)
     const { error } = await supabase.from('plants').delete().eq('id', plant.id)
     if (error) {
       setError(error.message)
@@ -143,7 +146,14 @@ export default function PlantDetailPage() {
       <div className="overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm">
         <div className="aspect-[16/10] w-full bg-brand-100">
           {plant.photo_url ? (
-            <img src={plant.photo_url} alt={plant.nickname} className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => setLightbox(true)}
+              className="block h-full w-full"
+              aria-label="Vis bildet i full størrelse"
+            >
+              <img src={plant.photo_url} alt={plant.nickname} className="h-full w-full object-cover" />
+            </button>
           ) : (
             <div className="grid h-full w-full place-items-center text-brand-500">
               <PlantMark className="h-16 w-16" />
@@ -230,12 +240,37 @@ export default function PlantDetailPage() {
       </section>
 
       <button
-        onClick={handleDelete}
+        onClick={() => setConfirmDelete(true)}
         className="text-sm text-red-600 hover:underline"
         type="button"
       >
         Slett plante
       </button>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={`Slette «${plant.nickname}»?`}
+        message="Planten og hele tidslinjen dens fjernes. Dette kan ikke angres."
+        confirmLabel="Slett"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
+
+      {lightbox && plant.photo_url && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+          onClick={() => setLightbox(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <img
+            src={plant.photo_url}
+            alt={plant.nickname}
+            className="max-h-full max-w-full rounded-lg object-contain"
+          />
+        </div>
+      )}
     </div>
   )
 }
