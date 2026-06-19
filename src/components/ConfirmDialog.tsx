@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Button } from './ui'
 
 /**
@@ -23,6 +24,15 @@ export default function ConfirmDialog({
   onConfirm: () => void
   onCancel: () => void
 }) {
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onCancel])
+
   if (!open) return null
   return (
     <div
@@ -47,7 +57,7 @@ export default function ConfirmDialog({
           >
             {confirmLabel}
           </button>
-          <Button variant="ghost" onClick={onCancel} className="flex-1">
+          <Button variant="ghost" onClick={onCancel} className="flex-1" autoFocus>
             {cancelLabel}
           </Button>
         </div>

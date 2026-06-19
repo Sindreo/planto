@@ -163,6 +163,15 @@ export function Plus(props: IconProps) {
   )
 }
 
+/** Kryss – lukk. */
+export function Close(props: IconProps) {
+  return (
+    <Line {...props}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </Line>
+  )
+}
+
 /** Varseltrekant – «trenger hjelp». */
 export function Alert(props: IconProps) {
   return (

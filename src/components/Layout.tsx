@@ -150,7 +150,7 @@ function NavTab({ to, label, icon }: { to: string; label: string; icon: ReactNod
       end={to === '/'}
       className={({ isActive }) =>
         `flex flex-1 flex-col items-center gap-0.5 py-3 text-xs font-medium ${
-          isActive ? 'text-brand-700' : 'text-gray-400'
+          isActive ? 'text-brand-700' : 'text-gray-500'
         }`
       }
     >

@@ -76,7 +76,7 @@ export default function TodayPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-sm text-gray-400 first-letter:uppercase">{formatToday()}</p>
+        <p className="text-sm text-gray-500 first-letter:uppercase">{formatToday()}</p>
         <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-gray-900">
           {greeting()}
           {firstName ? `, ${firstName}` : ''}
@@ -111,7 +111,7 @@ export default function TodayPage() {
             groups.nextWeek.length > 0 ||
             groups.laterMonth.length > 0) && (
             <section className="space-y-4">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Kommende vanninger
               </h2>
               <UpcomingGroup title="Denne uka" plants={groups.thisWeek} />
@@ -123,7 +123,7 @@ export default function TodayPage() {
           {/* Plantekort */}
           <section>
             <div className="mb-3 flex items-baseline justify-between">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Plantene dine
               </h2>
               <Link to="/planter" className="text-sm font-medium text-brand-700 hover:underline">
@@ -291,7 +291,7 @@ function UpcomingGroup({ title, plants }: { title: string; plants: Plant[] }) {
     <div>
       <div className="mb-1.5 flex items-center gap-2">
         <h3 className="text-sm font-medium text-gray-700">{title}</h3>
-        <span className="text-xs text-gray-400">{plants.length}</span>
+        <span className="text-xs text-gray-500">{plants.length}</span>
       </div>
       <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 bg-white">
         {plants.map((p) => (
@@ -300,7 +300,7 @@ function UpcomingGroup({ title, plants }: { title: string; plants: Plant[] }) {
               <Avatar plant={p} size="h-9 w-9" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-gray-900">{p.nickname}</p>
-                {p.location && <p className="truncate text-xs text-gray-400">{p.location}</p>}
+                {p.location && <p className="truncate text-xs text-gray-500">{p.location}</p>}
               </div>
               <span className="shrink-0 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
                 {relativeDay(p.next_water_due)}
