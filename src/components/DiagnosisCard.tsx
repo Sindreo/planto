@@ -65,7 +65,14 @@ export default function DiagnosisCard({
         {diagnosis.image_urls?.length > 0 && (
           <div className="flex gap-2">
             {diagnosis.image_urls.map((url, i) => (
-              <img key={i} src={url} alt="" className="h-16 w-16 rounded-lg object-cover" />
+              <img
+                key={i}
+                src={url}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="h-16 w-16 rounded-lg object-cover"
+              />
             ))}
           </div>
         )}
