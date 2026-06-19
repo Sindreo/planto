@@ -235,7 +235,13 @@ function Avatar({ plant, size = 'h-12 w-12' }: { plant: Plant; size?: string }) 
   return (
     <div className={`${size} shrink-0 overflow-hidden rounded-xl bg-brand-100`}>
       {plant.photo_url ? (
-        <img src={plant.photo_url} alt="" className="h-full w-full object-cover" />
+        <img
+          src={plant.photo_url}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover"
+        />
       ) : (
         <div className="grid h-full w-full place-items-center text-brand-500">
           <PlantMark className="h-6 w-6" />
@@ -325,7 +331,13 @@ function PlantCard({ plant }: { plant: Plant }) {
     >
       <div className="aspect-square w-full bg-brand-100">
         {plant.photo_url ? (
-          <img src={plant.photo_url} alt={plant.nickname} className="h-full w-full object-cover" />
+          <img
+            src={plant.photo_url}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
         ) : (
           <div className="grid h-full w-full place-items-center text-brand-500">
             <PlantMark className="h-10 w-10" />

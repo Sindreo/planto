@@ -196,7 +196,13 @@ function SaveOptions({
                   >
                     <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-brand-100">
                       {p.photo_url ? (
-                        <img src={p.photo_url} alt="" className="h-full w-full object-cover" />
+                        <img
+                          src={p.photo_url}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         <PlantMark className="h-5 w-5 text-brand-500" />
                       )}

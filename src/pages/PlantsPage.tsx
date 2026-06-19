@@ -73,7 +73,13 @@ export default function PlantsPage() {
               >
                 <div className="aspect-square w-full bg-brand-100">
                   {p.photo_url ? (
-                    <img src={p.photo_url} alt={p.nickname} className="h-full w-full object-cover" />
+                    <img
+                      src={p.photo_url}
+                      alt={p.nickname}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <div className="grid h-full w-full place-items-center text-brand-500">
                       <PlantMark className="h-10 w-10" />
