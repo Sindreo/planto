@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
       if (recipients.length === 0) continue
 
       const html = buildEmailHtml(plantsForHome, today)
-      await sendEmail(recipients, `🌱 Planto: ${plantsForHome.length} plante(r) trenger vann`, html)
+      await sendEmail(recipients, `Planto – ${plantsForHome.length} plante(r) trenger vann`, html)
       sent += recipients.length
     }
 
@@ -115,8 +115,19 @@ function buildEmailHtml(plants: DuePlant[], today: string): string {
          </ul>`
 
   return `
-  <div style="font-family:system-ui,Arial,sans-serif;max-width:480px;margin:0 auto">
-    <h2 style="color:#16a34a">🌱 God morgen!</h2>
+  <div style="font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;max-width:480px;margin:0 auto;padding:8px">
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:4px">
+      <tr>
+        <td style="vertical-align:middle">
+          <img src="https://planto.space/icons/icon-192.png" width="36" height="36" alt="Planto"
+               style="display:block;border-radius:9px" />
+        </td>
+        <td style="vertical-align:middle;padding-left:10px;font-weight:700;font-size:18px;color:#166534">
+          Planto
+        </td>
+      </tr>
+    </table>
+    <h2 style="color:#16a34a;margin:12px 0 4px">God morgen!</h2>
     <p style="color:#374151">Disse plantene trenger vann i dag:</p>
     ${section('På etterskudd', overdue)}
     ${section('Forfaller i dag', dueToday)}
