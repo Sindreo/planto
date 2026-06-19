@@ -8,6 +8,7 @@ import { fillCareGuide, identifySpecies } from '../lib/ai'
 import { upsertSpecies, speciesToGuide } from '../lib/species'
 import { nextDueDate } from '../lib/care'
 import { todayISO } from '../lib/format'
+import { translateError } from '../lib/errors'
 import type { Plant, Species } from '../types/db'
 import type { CareGuideResult, DiagnosisResult, SpeciesCandidate } from '../types/ai'
 import { Alert, Button, Checkbox, Input, Textarea } from './ui'
@@ -227,7 +228,7 @@ export default function PlantForm({ initial }: Props) {
         navigate(`/plants/${data.id}`)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(translateError(err))
     } finally {
       setSaving(false)
     }
