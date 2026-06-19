@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext'
 import { logWatering, undoWatering } from '../lib/care'
 import { formatDateTime, relativeDay, waterStatus, waterStatusLabel } from '../lib/format'
 import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
+import { translateError } from '../lib/errors'
 import { useToast } from '../components/Toast'
 import type { CareEvent, Diagnosis, Plant, Profile } from '../types/db'
 import DiagnosePanel from '../components/DiagnosePanel'
 import DiagnosisCard from '../components/DiagnosisCard'
 import ConfirmDialog from '../components/ConfirmDialog'
-import { Button, Spinner } from '../components/ui'
+import { Button, Skeleton } from '../components/ui'
 import { ArrowLeft, Close, Drop, Leaf, Note, Pin, PlantMark } from '../components/icons'
 
 export default function PlantDetailPage() {
@@ -99,7 +100,7 @@ export default function PlantDetailPage() {
         },
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(translateError(err))
     } finally {
       setWatering(false)
     }
@@ -110,7 +111,7 @@ export default function PlantDetailPage() {
     setConfirmDelete(false)
     const { error } = await supabase.from('plants').delete().eq('id', plant.id)
     if (error) {
-      setError(error.message)
+      setError(translateError(error))
       return
     }
     toast({ message: `Slettet «${plant.nickname}»` })
@@ -119,8 +120,14 @@ export default function PlantDetailPage() {
 
   if (loading) {
     return (
-      <div className="grid place-items-center py-16">
-        <Spinner label="Henter plante…" />
+      <div className="space-y-5">
+        <Skeleton className="h-5 w-28" />
+        <Skeleton className="aspect-[16/10] w-full rounded-2xl" />
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-1/2" />
+          <Skeleton className="h-4 w-1/3" />
+        </div>
+        <Skeleton className="h-32 w-full rounded-2xl" />
       </div>
     )
   }
