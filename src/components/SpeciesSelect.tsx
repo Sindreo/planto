@@ -57,7 +57,7 @@ export default function SpeciesSelect({
           onFocus={() => setOpen(true)}
           placeholder="Søk i registeret eller skriv selv"
           autoComplete="off"
-          className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+          className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200 sm:text-sm"
         />
       </label>
 
