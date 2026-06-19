@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import type { Plant } from '../types/db'
 import PlantForm from '../components/PlantForm'
-import { Spinner } from '../components/ui'
+import { Skeleton } from '../components/ui'
 import { ArrowLeft } from '../components/icons'
 
 export default function PlantFormPage() {
@@ -42,8 +42,11 @@ export default function PlantFormPage() {
       </h1>
 
       {loading ? (
-        <div className="grid place-items-center py-16">
-          <Spinner label="Henter plante…" />
+        <div className="space-y-5">
+          <Skeleton className="h-24 w-24 rounded-2xl" />
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
         </div>
       ) : error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
