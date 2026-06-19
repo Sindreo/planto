@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const admin = createClient(supabaseUrl, serviceKey)
 
-    const today = new Date().toISOString().slice(0, 10)
+    const today = appToday()
 
     const { data: plants, error } = await admin
       .from('plants')
@@ -80,6 +80,24 @@ Deno.serve(async (req) => {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500)
   }
 })
+
+/**
+ * Dagens dato (YYYY-MM-DD) i appens tidssone – ikke UTC. Dette holder e-postens
+ * «forfaller i dag / på etterskudd» i takt med klienten, som regner i lokal tid.
+ * Uten dette ville en cron-kjøring på kvelden (norsk tid) brukt morgendagens
+ * UTC-dato og tatt med planter en dag for tidlig. Tidssonen kan overstyres med
+ * APP_TIMEZONE (IANA-navn), standard Europe/Oslo.
+ */
+function appToday(): string {
+  const tz = Deno.env.get('APP_TIMEZONE') ?? 'Europe/Oslo'
+  // 'en-CA' gir ISO-formatet YYYY-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+}
 
 async function loadEmails(
   admin: ReturnType<typeof createClient>,
