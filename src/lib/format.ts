@@ -55,10 +55,10 @@ export function waterStatusLabel(plant: Pick<Plant, 'next_water_due'>): string {
   }
 }
 
-/** Antall dager mellom to ISO-datoer (b - a). */
+/** Antall dager mellom to ISO-datoer (b - a). Regner i UTC for tidssone-uavhengighet. */
 export function daysBetween(aISO: string, bISO: string): number {
-  const a = new Date(aISO.slice(0, 10) + 'T00:00:00')
-  const b = new Date(bISO.slice(0, 10) + 'T00:00:00')
+  const a = new Date(aISO.slice(0, 10) + 'T00:00:00Z')
+  const b = new Date(bISO.slice(0, 10) + 'T00:00:00Z')
   return Math.round((b.getTime() - a.getTime()) / 86_400_000)
 }
 
