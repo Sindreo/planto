@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { waterStatus, waterStatusLabel } from '../lib/format'
+import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
 import type { Plant } from '../types/db'
 import { Button, Spinner } from '../components/ui'
 import { PlantMark, Plus } from '../components/icons'
@@ -13,23 +14,21 @@ export default function PlantsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let active = true
-    setLoading(true)
-    supabase
+  const load = useCallback(async () => {
+    const { data, error } = await supabase
       .from('plants')
       .select('*')
       .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (!active) return
-        if (error) setError(error.message)
-        else setPlants(data ?? [])
-        setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [profile?.household_id])
+    if (error) setError(error.message)
+    else setPlants(data ?? [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    setLoading(true)
+    load()
+  }, [load, profile?.household_id])
+  useRefetchOnFocus(load)
 
   return (
     <div>

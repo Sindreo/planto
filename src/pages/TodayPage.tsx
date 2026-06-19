@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { logWatering } from '../lib/care'
+import { logWatering, undoWatering } from '../lib/care'
 import { todayISO, waterStatus } from '../lib/format'
+import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
 import type { Plant } from '../types/db'
 import { Spinner } from '../components/ui'
+import { useToast } from '../components/Toast'
 import { Check, Drop, PlantMark } from '../components/icons'
 
 /**
@@ -14,6 +16,7 @@ import { Check, Drop, PlantMark } from '../components/icons'
  */
 export default function TodayPage() {
   const { profile, session } = useAuth()
+  const toast = useToast()
   const [plants, setPlants] = useState<Plant[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
@@ -32,17 +35,37 @@ export default function TodayPage() {
   useEffect(() => {
     load()
   }, [load, profile?.household_id])
+  useRefetchOnFocus(load)
 
   async function water(plant: Plant) {
     if (!session?.user) return
+    const userId = session.user.id
+    const prev = { last: plant.last_watered_at, next: plant.next_water_due }
     setBusy(plant.id)
     try {
-      await logWatering({
+      const { eventId } = await logWatering({
         plantId: plant.id,
-        userId: session.user.id,
+        userId,
         waterIntervalDays: plant.water_interval_days,
       })
       await load()
+      toast({
+        message: `Vannet ${plant.nickname}`,
+        action: {
+          label: 'Angre',
+          onClick: async () => {
+            await undoWatering({
+              plantId: plant.id,
+              eventId,
+              prevLastWateredAt: prev.last,
+              prevNextWaterDue: prev.next,
+            })
+            await load()
+          },
+        },
+      })
+    } catch {
+      toast({ message: 'Klarte ikke å lagre vanning', tone: 'error' })
     } finally {
       setBusy(null)
     }

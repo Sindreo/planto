@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { logWatering } from '../lib/care'
+import { logWatering, undoWatering } from '../lib/care'
 import { formatDateTime, relativeDay, waterStatus, waterStatusLabel } from '../lib/format'
+import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
+import { useToast } from '../components/Toast'
 import type { CareEvent, Diagnosis, Plant, Profile } from '../types/db'
 import DiagnosePanel from '../components/DiagnosePanel'
 import DiagnosisCard from '../components/DiagnosisCard'
@@ -14,6 +16,7 @@ export default function PlantDetailPage() {
   const { id } = useParams()
   const { session } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
   const [plant, setPlant] = useState<Plant | null>(null)
   const [events, setEvents] = useState<CareEvent[]>([])
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([])
@@ -54,17 +57,34 @@ export default function PlantDetailPage() {
   useEffect(() => {
     load()
   }, [load])
+  useRefetchOnFocus(load)
 
   async function handleWatered() {
     if (!plant || !session?.user) return
+    const prev = { last: plant.last_watered_at, next: plant.next_water_due }
     setWatering(true)
     try {
-      await logWatering({
+      const { eventId } = await logWatering({
         plantId: plant.id,
         userId: session.user.id,
         waterIntervalDays: plant.water_interval_days,
       })
       await load()
+      toast({
+        message: `Vannet ${plant.nickname}`,
+        action: {
+          label: 'Angre',
+          onClick: async () => {
+            await undoWatering({
+              plantId: plant.id,
+              eventId,
+              prevLastWateredAt: prev.last,
+              prevNextWaterDue: prev.next,
+            })
+            await load()
+          },
+        },
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -80,6 +100,7 @@ export default function PlantDetailPage() {
       setError(error.message)
       return
     }
+    toast({ message: `Slettet «${plant.nickname}»` })
     navigate('/planter')
   }
 

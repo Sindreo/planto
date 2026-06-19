@@ -11,6 +11,7 @@ import { todayISO } from '../lib/format'
 import type { Plant, Species } from '../types/db'
 import type { CareGuideResult, DiagnosisResult, SpeciesCandidate } from '../types/ai'
 import { Alert, Button, Checkbox, Input, Textarea } from './ui'
+import { useToast } from './Toast'
 import IdentifySpeciesButton from './IdentifySpeciesButton'
 import CareGuideButton from './CareGuideButton'
 import SpeciesSelect from './SpeciesSelect'
@@ -22,6 +23,7 @@ type Props = { initial?: Plant }
 export default function PlantForm({ initial }: Props) {
   const { profile, session } = useAuth()
   const navigate = useNavigate()
+  const toast = useToast()
   const routerLocation = useLocation()
   // Satt når man oppretter en plante fra «Sjekk»-flyten – diagnosen kobles på
   // etterpå, og bildet + vurderingen tas med så feltene kan forhåndsutfylles.
@@ -204,6 +206,7 @@ export default function PlantForm({ initial }: Props) {
           .update({ ...row, next_water_due: next })
           .eq('id', initial.id)
         if (error) throw error
+        toast({ message: 'Endringer lagret' })
         navigate(`/plants/${initial.id}`)
       } else {
         const { data, error } = await supabase
@@ -220,6 +223,7 @@ export default function PlantForm({ initial }: Props) {
             // Ikke kritisk – planten er opprettet uansett.
           }
         }
+        toast({ message: `La til «${row.nickname}»` })
         navigate(`/plants/${data.id}`)
       }
     } catch (err) {
