@@ -113,27 +113,47 @@ export default function PlantForm({ initial }: Props) {
   function onPickPhoto(file: File | null) {
     setPhotoFile(file)
     setPhotoPreview(file ? URL.createObjectURL(file) : photoUrl)
+    // Ny plante: kjør artsgjenkjenning automatisk når et bilde velges, så
+    // brukeren slipper å trykke «Finn art». Hopp over hvis art alt er satt.
+    if (file && !isEdit && !species.trim()) {
+      void runIdentify(file)
+    }
+  }
+
+  /** Kjør AI-artsgjenkjenning på et bilde og fyll inn toppforslaget + stell. */
+  const identifyingRef = useRef(false)
+  async function runIdentify(image: Blob) {
+    if (identifyingRef.current) return
+    identifyingRef.current = true
+    try {
+      setIdentifying(true)
+      const res = await identifySpecies(image, session?.access_token)
+      const top = res.candidates?.[0]
+      if (top) await handleSpeciesPicked(top)
+    } catch {
+      // Stille – brukeren kan trykke «Finn art» manuelt.
+    } finally {
+      setIdentifying(false)
+      identifyingRef.current = false
+    }
   }
 
   // Kom man hit fra «Sjekk en plante» med et bilde, finn arten automatisk fra
   // bildet slik at art og stell er forhåndsutfylt (kan endres etterpå).
-  const autoIdentified = useRef(false)
   useEffect(() => {
-    if (isEdit || autoIdentified.current || !carriedPhotoUrl) return
-    autoIdentified.current = true
+    if (isEdit || !carriedPhotoUrl) return
+    let cancelled = false
     void (async () => {
       try {
-        setIdentifying(true)
         const blob = await fetch(carriedPhotoUrl).then((r) => r.blob())
-        const res = await identifySpecies(blob, session?.access_token)
-        const top = res.candidates?.[0]
-        if (top) await handleSpeciesPicked(top)
+        if (!cancelled) await runIdentify(blob)
       } catch {
-        // Stille – brukeren kan trykke «Finn art» manuelt.
-      } finally {
-        setIdentifying(false)
+        // Stille.
       }
     })()
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

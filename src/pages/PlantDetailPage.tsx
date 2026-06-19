@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { logWatering } from '../lib/care'
-import { formatDate, formatDateTime, waterStatus, waterStatusLabel } from '../lib/format'
+import { formatDateTime, relativeDay, waterStatus, waterStatusLabel } from '../lib/format'
 import type { CareEvent, Diagnosis, Plant, Profile } from '../types/db'
 import DiagnosePanel from '../components/DiagnosePanel'
 import DiagnosisCard from '../components/DiagnosisCard'
@@ -186,7 +186,7 @@ export default function PlantDetailPage() {
             label="Ompotting"
             value={plant.repot_interval_months ? `Hver ${plant.repot_interval_months}. mnd` : null}
           />
-          <Field label="Sist vannet" value={plant.last_watered_at ? formatDate(plant.last_watered_at) : null} />
+          <Field label="Sist vannet" value={plant.last_watered_at ? relativeDay(plant.last_watered_at) : null} />
           <Field
             label="Giftig for kjæledyr"
             value={plant.toxic_to_pets == null ? null : plant.toxic_to_pets ? 'Ja' : 'Nei'}

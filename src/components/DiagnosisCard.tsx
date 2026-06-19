@@ -115,23 +115,33 @@ export default function DiagnosisCard({
   )
 }
 
-function statusFor(result: DiagnosisResult | null): {
-  label: string
-  Icon: IconComponent
-  bg: string
-  text: string
-} {
-  const health = (result?.overall_health ?? '').toLowerCase()
-  const hasIssues = (result?.likely_issues?.length ?? 0) > 0
+type StatusInfo = { label: string; Icon: IconComponent; bg: string; text: string }
 
-  if (health.includes('dårlig') || health.includes('darlig')) {
-    return { label: 'Trenger hjelp', Icon: WarnIcon, bg: 'bg-red-50', text: 'text-red-700' }
-  }
-  if (health.includes('middels')) {
-    return { label: 'Følg med', Icon: Lens, bg: 'bg-amber-50', text: 'text-amber-800' }
-  }
-  if (health.includes('god') || (!hasIssues && health)) {
-    return { label: 'Ser frisk ut', Icon: Leaf, bg: 'bg-brand-50', text: 'text-brand-800' }
-  }
-  return { label: 'Vurdert', Icon: PlantMark, bg: 'bg-gray-50', text: 'text-gray-700' }
+const RED: StatusInfo = { label: 'Trenger hjelp', Icon: WarnIcon, bg: 'bg-red-50', text: 'text-red-700' }
+const AMBER: StatusInfo = { label: 'Følg med', Icon: Lens, bg: 'bg-amber-50', text: 'text-amber-800' }
+const GREEN: StatusInfo = { label: 'Ser frisk ut', Icon: Leaf, bg: 'bg-brand-50', text: 'text-brand-800' }
+const NEUTRAL: StatusInfo = { label: 'Vurdert', Icon: PlantMark, bg: 'bg-gray-50', text: 'text-gray-700' }
+
+/**
+ * Utleder status robust: bruker et eksplisitt `health`-felt om det finnes,
+ * ellers matcher den bredt mot helse-teksten og faller til slutt tilbake på
+ * antall/alvorlighet av funn. Slik havner den sjelden på nøytral «Vurdert».
+ */
+function statusFor(result: DiagnosisResult | null): StatusInfo {
+  if (!result) return NEUTRAL
+
+  const fields = [result.health ?? '', result.overall_health ?? '']
+    .join(' ')
+    .toLowerCase()
+
+  if (/dårlig|darlig|syk|kritisk|alvorlig|døende|visn/.test(fields)) return RED
+  if (/middels|moderat|følg med|begynnende|tegn til|noe stress|lett/.test(fields)) return AMBER
+  if (/god|frisk|sunn|fin form|bra|sterk|trives/.test(fields)) return GREEN
+
+  // Ingen tydelige ord – utled fra funnene.
+  const issues = result.likely_issues ?? []
+  if (issues.some((i) => i.confidence === 'høy')) return RED
+  if (issues.length > 0) return AMBER
+  if (result.overall_health) return GREEN
+  return NEUTRAL
 }
