@@ -4,6 +4,10 @@ import type { Database } from '../types/db'
 const url = import.meta.env.VITE_SUPABASE_URL
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+/** Eksponert for direkte fetch mot Edge Functions (f.eks. strømmende chat). */
+export const supabaseUrl = url
+export const supabaseAnonKey = anonKey
+
 /**
  * True når frontend er konfigurert med Supabase-nøkler. Brukes til å vise en
  * hjelpsom melding i stedet for en kryptisk feil hvis .env.local mangler.
