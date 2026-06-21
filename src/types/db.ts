@@ -48,6 +48,7 @@ export type Plant = {
   last_watered_at: string | null
   last_fertilized_at: string | null
   next_water_due: string | null
+  responsible_user_id: string | null
   created_at: string
 }
 

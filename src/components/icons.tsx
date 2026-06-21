@@ -163,6 +163,16 @@ export function Plus(props: IconProps) {
   )
 }
 
+/** Person – ansvarlig bruker. */
+export function Person(props: IconProps) {
+  return (
+    <Line {...props}>
+      <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+      <path d="M4 20a8 8 0 0 1 16 0" />
+    </Line>
+  )
+}
+
 /** Kryss – lukk. */
 export function Close(props: IconProps) {
   return (
