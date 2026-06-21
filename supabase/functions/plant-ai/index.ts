@@ -75,42 +75,6 @@ interface ChatMsg {
   content: string
 }
 
-/** Fler-turs samtale (uten bilder), brukt av chat-handlingen. */
-async function callClaudeMessages(params: {
-  system: string
-  messages: ChatMsg[]
-  model?: string
-  maxTokens?: number
-}): Promise<string> {
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
-  if (!apiKey) throw new Error('Mangler ANTHROPIC_API_KEY i Edge Function-miljøet')
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: params.model ?? MODEL_CHAT,
-      max_tokens: params.maxTokens ?? 800,
-      system: params.system,
-      messages: params.messages,
-    }),
-  })
-
-  if (!res.ok) {
-    const detail = await res.text()
-    throw new Error(`Claude-feil (${res.status}): ${detail.slice(0, 300)}`)
-  }
-
-  const data = await res.json()
-  const text = data?.content?.[0]?.text
-  if (typeof text !== 'string') throw new Error('Uventet svar fra Claude')
-  return text
-}
-
 /** Henter ut det første JSON-objektet fra en tekst (tåler ```-kodeblokker). */
 function extractJson<T>(text: string): T {
   let s = text.trim()
@@ -328,17 +292,77 @@ async function handleChat(
     'Om planten brukeren spør om:\n' +
     buildPlantContext(body.context ?? {})
 
-  const messages = normalizeMessages(
-    (rows ?? []) as ChatMsg[],
-  )
+  const messages = normalizeMessages((rows ?? []) as ChatMsg[])
 
-  const reply = await callClaudeMessages({ system, messages, maxTokens: 800 })
+  // Strøm svaret token for token fra Claude videre til klienten, og samle opp
+  // hele teksten så vi kan lagre den når strømmen er ferdig.
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!apiKey) return jsonResponse({ error: 'Mangler ANTHROPIC_API_KEY i Edge Function-miljøet' }, 500)
 
-  await admin
-    .from('plant_chat_messages')
-    .insert({ plant_id: plantId, user_id: userId, role: 'assistant', content: reply })
+  const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ model: MODEL_CHAT, max_tokens: 800, stream: true, system, messages }),
+  })
+  if (!upstream.ok || !upstream.body) {
+    const detail = await upstream.text().catch(() => '')
+    return jsonResponse({ error: `Claude-feil (${upstream.status}): ${detail.slice(0, 200)}` }, 502)
+  }
 
-  return jsonResponse({ reply })
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    async start(controller) {
+      const reader = upstream.body!.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let full = ''
+      try {
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          // Server-Sent Events skilles med tom linje.
+          const parts = buffer.split('\n\n')
+          buffer = parts.pop() ?? ''
+          for (const part of parts) {
+            const dataLine = part.split('\n').find((l) => l.startsWith('data:'))
+            if (!dataLine) continue
+            const payload = dataLine.slice(5).trim()
+            if (!payload || payload === '[DONE]') continue
+            try {
+              const evt = JSON.parse(payload)
+              if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+                const text = evt.delta.text as string
+                if (text) {
+                  full += text
+                  controller.enqueue(encoder.encode(text))
+                }
+              }
+            } catch {
+              // hopp over ufullstendige/ukjente hendelser
+            }
+          }
+        }
+      } catch {
+        // strømmen ble brutt – vi lagrer det vi rakk å motta
+      } finally {
+        if (full.trim()) {
+          await admin
+            .from('plant_chat_messages')
+            .insert({ plant_id: plantId, user_id: userId, role: 'assistant', content: full })
+        }
+        controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: { ...corsHeaders, 'Content-Type': 'text/plain; charset=utf-8' },
+  })
 }
 
 /** Bygger en lesbar kontekstblokk om planten til chat-systemprompten. */

@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, supabaseAnonKey, supabaseUrl } from './supabase'
 import { compressImage } from './photos'
 import type { CareGuideResult, DiagnosisResult, IdentifyResult } from '../types/ai'
 
@@ -97,15 +97,57 @@ export async function fillCareGuide(
 }
 
 /**
- * Send en melding i chatten om en konkret plante. Backend lagrer både
- * brukermeldingen og svaret i `plant_chat_messages` og returnerer svaret.
+ * Strømmer et chat-svar om en konkret plante token for token via en direkte
+ * fetch mot Edge-funksjonen. Backend lagrer både brukermeldingen og svaret.
+ * Faller tilbake til å vise hele svaret samtidig hvis funksjonen ennå svarer
+ * med JSON (dvs. ikke er redeployet med strømming).
  */
-export async function chatAboutPlant(
+export async function streamChatAboutPlant(
   params: { plantId: string; message: string; context?: Record<string, unknown> },
-  accessToken?: string,
-): Promise<{ reply: string }> {
-  return invoke<{ reply: string }>(
-    { action: 'chat', plant_id: params.plantId, message: params.message, context: params.context },
-    accessToken,
-  )
+  accessToken: string | undefined,
+  onToken: (chunk: string) => void,
+): Promise<void> {
+  const res = await fetch(`${supabaseUrl}/functions/v1/${FUNCTION}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: supabaseAnonKey ?? '',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({
+      action: 'chat',
+      plant_id: params.plantId,
+      message: params.message,
+      context: params.context,
+    }),
+  })
+
+  if (!res.ok) {
+    let detail = `Feil (${res.status})`
+    try {
+      const j = await res.json()
+      if (j?.error) detail = j.error
+    } catch {
+      // behold standardmeldingen
+    }
+    throw new Error(detail)
+  }
+
+  // Eldre funksjon (uten strømming) svarer med JSON {reply}: vis hele svaret.
+  const ctype = res.headers.get('content-type') ?? ''
+  if (ctype.includes('application/json')) {
+    const j = await res.json()
+    if (j?.reply) onToken(j.reply as string)
+    return
+  }
+
+  if (!res.body) throw new Error('Tomt svar fra Planto')
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    const chunk = decoder.decode(value, { stream: true })
+    if (chunk) onToken(chunk)
+  }
 }
