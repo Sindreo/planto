@@ -24,6 +24,7 @@ export default function PlantDetailPage() {
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([])
   const [members, setMembers] = useState<Record<string, string>>({})
   const [responsibleIds, setResponsibleIds] = useState<string[]>([])
+  const [speciesLatin, setSpeciesLatin] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [watering, setWatering] = useState(false)
@@ -66,6 +67,28 @@ export default function PlantDetailPage() {
     load()
   }, [load])
   useRefetchOnFocus(load)
+
+  // Hent det fulle latinske navnet fra arts-registeret når planten er koblet
+  // til en art (plant.species er bare fritekst/vanlig navn).
+  useEffect(() => {
+    const sid = plant?.species_id
+    if (!sid) {
+      setSpeciesLatin(null)
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('species')
+      .select('latin_name')
+      .eq('id', sid)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setSpeciesLatin((data as { latin_name: string } | null)?.latin_name ?? null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [plant?.species_id])
 
   // Lukk fullskjerm-bildet med Escape.
   useEffect(() => {
@@ -186,6 +209,9 @@ export default function PlantDetailPage() {
             <div>
               <h1 className="text-xl font-bold text-gray-900">{plant.nickname}</h1>
               {plant.species && <p className="text-sm text-gray-500">{plant.species}</p>}
+              {speciesLatin && speciesLatin !== plant.species && (
+                <p className="text-sm italic text-gray-500">{speciesLatin}</p>
+              )}
               {plant.location && (
                 <p className="inline-flex items-center gap-1 text-sm text-gray-500">
                   <Pin className="h-3.5 w-3.5" />
