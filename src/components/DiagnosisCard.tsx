@@ -21,7 +21,7 @@ export default function DiagnosisCard({
   const [expanded, setExpanded] = useState(defaultExpanded)
   const result = diagnosis.result_json as DiagnosisResult | null
 
-  const status = statusFor(result)
+  const status = diagnosisStatus(result)
   const primaryIssue = result?.likely_issues?.[0]
   const nextAction = result?.actions?.[0]
   const waterDays = result?.watering_recommendation_days
@@ -122,7 +122,7 @@ export default function DiagnosisCard({
   )
 }
 
-type StatusInfo = { label: string; Icon: IconComponent; bg: string; text: string }
+export type StatusInfo = { label: string; Icon: IconComponent; bg: string; text: string }
 
 const RED: StatusInfo = { label: 'Trenger hjelp', Icon: WarnIcon, bg: 'bg-red-50', text: 'text-red-700' }
 const AMBER: StatusInfo = { label: 'Følg med', Icon: Lens, bg: 'bg-amber-50', text: 'text-amber-800' }
@@ -134,7 +134,7 @@ const NEUTRAL: StatusInfo = { label: 'Vurdert', Icon: PlantMark, bg: 'bg-gray-50
  * ellers matcher den bredt mot helse-teksten og faller til slutt tilbake på
  * antall/alvorlighet av funn. Slik havner den sjelden på nøytral «Vurdert».
  */
-function statusFor(result: DiagnosisResult | null): StatusInfo {
+export function diagnosisStatus(result: DiagnosisResult | null): StatusInfo {
   if (!result) return NEUTRAL
 
   const fields = [result.health ?? '', result.overall_health ?? '']

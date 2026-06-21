@@ -57,6 +57,15 @@ export type PlantResponsible = {
   created_at: string
 }
 
+export type PlantChatMessage = {
+  id: string
+  plant_id: string
+  user_id: string | null
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
+}
+
 export type CareEvent = {
   id: string
   plant_id: string
@@ -85,6 +94,7 @@ export interface Database {
       profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile>; Relationships: [] }
       plants: { Row: Plant; Insert: Partial<Plant>; Update: Partial<Plant>; Relationships: [] }
       plant_responsibles: { Row: PlantResponsible; Insert: Partial<PlantResponsible>; Update: Partial<PlantResponsible>; Relationships: [] }
+      plant_chat_messages: { Row: PlantChatMessage; Insert: Partial<PlantChatMessage>; Update: Partial<PlantChatMessage>; Relationships: [] }
       care_events: { Row: CareEvent; Insert: Partial<CareEvent>; Update: Partial<CareEvent>; Relationships: [] }
       diagnoses: { Row: Diagnosis; Insert: Partial<Diagnosis>; Update: Partial<Diagnosis>; Relationships: [] }
       species: { Row: Species; Insert: Partial<Species>; Update: Partial<Species>; Relationships: [] }

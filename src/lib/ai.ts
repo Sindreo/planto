@@ -14,12 +14,13 @@ async function fileToBase64(file: Blob): Promise<string> {
 }
 
 interface InvokeBody {
-  action: 'identify' | 'diagnose' | 'careguide'
+  action: 'identify' | 'diagnose' | 'careguide' | 'chat'
   images?: string[] // base64 (kun for identify)
   image_urls?: string[] // offentlige URL-er (for diagnose)
   species?: string | null
   context?: Record<string, unknown>
   plant_id?: string | null
+  message?: string // kun for chat
 }
 
 async function invoke<T>(body: InvokeBody, accessToken?: string): Promise<T> {
@@ -93,4 +94,18 @@ export async function fillCareGuide(
   accessToken?: string,
 ): Promise<CareGuideResult> {
   return invoke<CareGuideResult>({ action: 'careguide', species }, accessToken)
+}
+
+/**
+ * Send en melding i chatten om en konkret plante. Backend lagrer både
+ * brukermeldingen og svaret i `plant_chat_messages` og returnerer svaret.
+ */
+export async function chatAboutPlant(
+  params: { plantId: string; message: string; context?: Record<string, unknown> },
+  accessToken?: string,
+): Promise<{ reply: string }> {
+  return invoke<{ reply: string }>(
+    { action: 'chat', plant_id: params.plantId, message: params.message, context: params.context },
+    accessToken,
+  )
 }
