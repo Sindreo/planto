@@ -202,7 +202,7 @@ function greeting(): string {
   return 'God kveld'
 }
 function summaryLine(nowCount: number): string {
-  if (nowCount === 0) return 'Alt er à jour – ingenting trenger vann akkurat nå.'
+  if (nowCount === 0) return 'Alt er ajour – ingenting trenger vann akkurat nå.'
   return `${nowCount} ${nowCount === 1 ? 'plante' : 'planter'} trenger vann nå.`
 }
 
@@ -363,7 +363,7 @@ function AllClear() {
         <Check className="h-6 w-6" />
       </span>
       <div>
-        <p className="font-semibold text-gray-900">Alt er à jour</p>
+        <p className="font-semibold text-gray-900">Alt er ajour</p>
         <p className="text-sm text-gray-500">Ingen planter trenger vann akkurat nå.</p>
       </div>
     </div>
