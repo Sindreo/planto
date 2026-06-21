@@ -22,9 +22,12 @@ import { useToast } from './Toast'
 import IdentifySpeciesButton from './IdentifySpeciesButton'
 import CareGuideButton from './CareGuideButton'
 import SpeciesSelect from './SpeciesSelect'
-import { PlantMark } from './icons'
+import { Close, PlantMark } from './icons'
 
 type Props = { initial?: Plant }
+
+/** Et valgt bilde: enten et allerede lagret URL eller en nyvalgt fil. */
+type Photo = { url: string } | { file: File; preview: string }
 
 /** Skjema for å opprette eller redigere en plante (M1), med AI-knapper (M2). */
 export default function PlantForm({ initial }: Props) {
@@ -73,10 +76,15 @@ export default function PlantForm({ initial }: Props) {
     )
   }
 
-  // Gjenbruk det allerede opplastede diagnose-bildet som plantens bilde.
-  const photoUrl = initial?.photo_url ?? carriedPhotoUrl
-  const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [photoPreview, setPhotoPreview] = useState(initial?.photo_url ?? carriedPhotoUrl)
+  // Bilder: opptil 3 for nye planter (flere vinkler gir en bedre helsesjekk),
+  // ett ved redigering. Hvert bilde er enten et allerede lagret URL eller en
+  // nyvalgt fil.
+  const maxPhotos = isEdit ? 1 : 3
+  const existingUrl = initial?.photo_url ?? carriedPhotoUrl
+  const [photos, setPhotos] = useState<Photo[]>(existingUrl ? [{ url: existingUrl }] : [])
+  const firstPhoto = photos[0]
+  const firstFile = firstPhoto && 'file' in firstPhoto ? firstPhoto.file : null
+  const firstUrl = firstPhoto && 'url' in firstPhoto ? firstPhoto.url : undefined
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -132,14 +140,30 @@ export default function PlantForm({ initial }: Props) {
     applyGuide(speciesToGuide(s))
   }
 
-  function onPickPhoto(file: File | null) {
-    setPhotoFile(file)
-    setPhotoPreview(file ? URL.createObjectURL(file) : photoUrl)
-    // Ny plante: kjør artsgjenkjenning automatisk når et bilde velges, så
-    // brukeren slipper å trykke «Finn art». Hopp over hvis art alt er satt.
-    if (file && !isEdit && !species.trim()) {
-      void runIdentify(file)
-    }
+  /** Legg til nye bilder (opptil maxPhotos totalt). */
+  function addPhotos(list: FileList | null) {
+    if (!list || list.length === 0) return
+    setPhotos((prev) => {
+      const room = maxPhotos - prev.length
+      if (room <= 0) return prev
+      const incoming: Photo[] = Array.from(list)
+        .slice(0, room)
+        .map((file) => ({ file, preview: URL.createObjectURL(file) }))
+      // Ny plante uten valgt art: kjør artsgjenkjenning på det første bildet, så
+      // brukeren slipper å trykke «Finn art».
+      if (!isEdit && !species.trim() && prev.length === 0 && incoming.length > 0) {
+        void runIdentify((incoming[0] as { file: File }).file)
+      }
+      return [...prev, ...incoming]
+    })
+  }
+
+  function removePhoto(index: number) {
+    setPhotos((prev) => {
+      const p = prev[index]
+      if (p && 'preview' in p) URL.revokeObjectURL(p.preview)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   /** Kjør AI-artsgjenkjenning på et bilde og fyll inn toppforslaget + stell. */
@@ -210,10 +234,13 @@ export default function PlantForm({ initial }: Props) {
     setError(null)
     setSaving(true)
     try {
-      let finalPhotoUrl = photoUrl
-      if (photoFile) {
-        finalPhotoUrl = await uploadPlantPhoto(profile.household_id, photoFile)
+      // Last opp nye bilder; behold allerede lagrede URL-er som de er.
+      const photoUrls: string[] = []
+      for (const p of photos) {
+        if ('url' in p) photoUrls.push(p.url)
+        else photoUrls.push(await uploadPlantPhoto(profile.household_id, p.file))
       }
+      const finalPhotoUrl = photoUrls[0] ?? null
 
       const water = strToNum(waterDays)
       const row = {
@@ -271,7 +298,7 @@ export default function PlantForm({ initial }: Props) {
           }
         }
         toast({ message: `La til «${row.nickname}»` })
-        navigate(`/plants/${data.id}`, { state: { justCreated: true } })
+        navigate(`/plants/${data.id}`, { state: { justCreated: true, photoUrls } })
       }
     } catch (err) {
       setError(translateError(err))
@@ -282,40 +309,67 @@ export default function PlantForm({ initial }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Bilde + plante-ID */}
-      <div className="flex items-center gap-4">
-        <div className="relative grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-100 text-3xl">
-          {photoPreview ? (
-            <img src={photoPreview} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <PlantMark className="h-8 w-8 text-brand-500" />
-          )}
-          {identifying && (
-            <div className="absolute inset-0 bg-brand-900/25">
-              <div className="absolute inset-x-0 top-0 h-7 animate-scan bg-gradient-to-b from-transparent via-white/85 to-transparent" />
-              <div className="absolute inset-0 ring-2 ring-inset ring-brand-300/70" />
+      {/* Bilder + plante-ID */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {photos.map((p, i) => (
+            <div
+              key={i}
+              className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-brand-100"
+            >
+              <img
+                src={'url' in p ? p.url : p.preview}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+              {identifying && i === 0 && (
+                <div className="absolute inset-0 bg-brand-900/25">
+                  <div className="absolute inset-x-0 top-0 h-7 animate-scan bg-gradient-to-b from-transparent via-white/85 to-transparent" />
+                  <div className="absolute inset-0 ring-2 ring-inset ring-brand-300/70" />
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => removePhoto(i)}
+                aria-label="Fjern bilde"
+                className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
+              >
+                <Close className="h-3.5 w-3.5" />
+              </button>
             </div>
+          ))}
+          {photos.length < maxPhotos && (
+            <label className="grid h-24 w-24 shrink-0 cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 hover:bg-gray-50">
+              <div className="flex flex-col items-center text-xs font-medium">
+                <PlantMark className="h-6 w-6" />
+                <span className="mt-1">{photos.length === 0 ? 'Velg bilde' : 'Legg til'}</span>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  addPhotos(e.target.files)
+                  e.target.value = ''
+                }}
+              />
+            </label>
           )}
         </div>
-        <div className="space-y-2">
-          <label className="inline-block cursor-pointer rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            {photoPreview ? 'Bytt bilde' : 'Velg bilde'}
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => onPickPhoto(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          <IdentifySpeciesButton
-            file={photoFile}
-            existingUrl={photoUrl || undefined}
-            accessToken={session?.access_token}
-            onPick={handleSpeciesPicked}
-            onLoadingChange={setIdentifying}
-          />
-        </div>
+        <IdentifySpeciesButton
+          file={firstFile}
+          existingUrl={firstUrl}
+          accessToken={session?.access_token}
+          onPick={handleSpeciesPicked}
+          onLoadingChange={setIdentifying}
+        />
+        {!isEdit && (
+          <p className="text-xs text-gray-500">
+            Du kan legge til opptil {maxPhotos} bilder – flere vinkler gir en bedre helsesjekk.
+          </p>
+        )}
       </div>
 
       <Input
