@@ -1,8 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { translateError } from '../lib/errors'
 import type { Household } from '../types/db'
+import { useToast } from './Toast'
 import { Calendar, Lens, PlantMark, PlantoMark } from './icons'
 
 /**
@@ -10,10 +12,15 @@ import { Calendar, Lens, PlantMark, PlantoMark } from './icons'
  * invitasjonskode og utlogging.
  */
 export default function Layout({ children }: { children: ReactNode }) {
-  const { profile, signOut } = useAuth()
+  const { profile, signOut, refreshProfile } = useAuth()
+  const toast = useToast()
   const [household, setHousehold] = useState<Household | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [switching, setSwitching] = useState(false)
+  const [switchCode, setSwitchCode] = useState('')
+  const [switchBusy, setSwitchBusy] = useState(false)
+  const [switchErr, setSwitchErr] = useState<string | null>(null)
 
   useEffect(() => {
     if (!profile?.household_id) return
@@ -30,6 +37,32 @@ export default function Layout({ children }: { children: ReactNode }) {
     await navigator.clipboard.writeText(household.invite_code)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  function resetSwitch() {
+    setSwitching(false)
+    setSwitchCode('')
+    setSwitchErr(null)
+  }
+
+  async function handleSwitch(e: FormEvent) {
+    e.preventDefault()
+    setSwitchErr(null)
+    setSwitchBusy(true)
+    try {
+      const { error } = await supabase.rpc('join_household', {
+        p_invite_code: switchCode.trim().toUpperCase(),
+      })
+      if (error) throw error
+      await refreshProfile()
+      resetSwitch()
+      setMenuOpen(false)
+      toast({ message: 'Byttet husstand' })
+    } catch (err) {
+      setSwitchErr(translateError(err))
+    } finally {
+      setSwitchBusy(false)
+    }
   }
 
   return (
@@ -86,6 +119,49 @@ export default function Layout({ children }: { children: ReactNode }) {
                     </p>
                   </div>
                 )}
+
+                {household &&
+                  (switching ? (
+                    <form onSubmit={handleSwitch} className="mt-3 space-y-2">
+                      <input
+                        value={switchCode}
+                        onChange={(e) => setSwitchCode(e.target.value)}
+                        placeholder="Invitasjonskode"
+                        autoCapitalize="characters"
+                        autoFocus
+                        className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Du forlater nåværende husstand. Plantene blir igjen der.
+                      </p>
+                      {switchErr && <p className="text-xs text-red-600">{switchErr}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={switchBusy || !switchCode.trim()}
+                          className="flex-1 rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        >
+                          {switchBusy ? 'Bytter…' : 'Bytt'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={resetSwitch}
+                          className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Avbryt
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <button
+                      onClick={() => setSwitching(true)}
+                      className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      type="button"
+                    >
+                      Bytt husstand
+                    </button>
+                  ))}
+
                 <button
                   onClick={() => signOut()}
                   className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
