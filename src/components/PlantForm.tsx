@@ -271,7 +271,7 @@ export default function PlantForm({ initial }: Props) {
           }
         }
         toast({ message: `La til «${row.nickname}»` })
-        navigate(`/plants/${data.id}`)
+        navigate(`/plants/${data.id}`, { state: { justCreated: true } })
       }
     } catch (err) {
       setError(translateError(err))

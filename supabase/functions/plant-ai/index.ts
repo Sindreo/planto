@@ -1,8 +1,9 @@
 // Edge Function: plant-ai
-// Tre handlinger som deler oppsett (SPEC M2):
+// Handlinger som deler oppsett (SPEC M2):
 //   - identify : plante-ID fra ett bilde (base64) → artskandidater
 //   - diagnose : 1–3 bilde-URL-er + kontekst → diagnose, lagres i `diagnoses`
 //   - careguide: art (uten bilde) → forslag til stellguide
+//   - chat     : samtale om en konkret plante → svar, lagres i `plant_chat_messages`
 //
 // Anthropic-nøkkelen ligger KUN som hemmelig miljøvariabel her, aldri i frontend.
 // Selvstendig fil – kan limes rett inn i Supabase-dashbordets Edge Function-editor.
@@ -10,7 +11,10 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const MODEL = 'claude-sonnet-4-6'
+// Chat er ren tekst-rådgivning – Haiku er raskt og rimelig og holder godt her.
+const MODEL_CHAT = 'claude-haiku-4-5-20251001'
 const MAX_AI_PER_DAY = Number(Deno.env.get('MAX_AI_PER_DAY') ?? '40')
+const MAX_CHAT_PER_DAY = Number(Deno.env.get('MAX_CHAT_PER_DAY') ?? '60')
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,6 +70,47 @@ async function callClaude(params: {
   return text
 }
 
+interface ChatMsg {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/** Fler-turs samtale (uten bilder), brukt av chat-handlingen. */
+async function callClaudeMessages(params: {
+  system: string
+  messages: ChatMsg[]
+  model?: string
+  maxTokens?: number
+}): Promise<string> {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!apiKey) throw new Error('Mangler ANTHROPIC_API_KEY i Edge Function-miljøet')
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: params.model ?? MODEL_CHAT,
+      max_tokens: params.maxTokens ?? 800,
+      system: params.system,
+      messages: params.messages,
+    }),
+  })
+
+  if (!res.ok) {
+    const detail = await res.text()
+    throw new Error(`Claude-feil (${res.status}): ${detail.slice(0, 300)}`)
+  }
+
+  const data = await res.json()
+  const text = data?.content?.[0]?.text
+  if (typeof text !== 'string') throw new Error('Uventet svar fra Claude')
+  return text
+}
+
 /** Henter ut det første JSON-objektet fra en tekst (tåler ```-kodeblokker). */
 function extractJson<T>(text: string): T {
   let s = text.trim()
@@ -77,12 +122,13 @@ function extractJson<T>(text: string): T {
 }
 
 interface Body {
-  action: 'identify' | 'diagnose' | 'careguide'
+  action: 'identify' | 'diagnose' | 'careguide' | 'chat'
   images?: string[]
   image_urls?: string[]
   species?: string | null
   context?: Record<string, unknown>
   plant_id?: string | null
+  message?: string
 }
 
 Deno.serve(async (req) => {
@@ -123,6 +169,7 @@ Deno.serve(async (req) => {
     if (body.action === 'identify') return await handleIdentify(body)
     if (body.action === 'careguide') return await handleCareGuide(body)
     if (body.action === 'diagnose') return await handleDiagnose(body, admin, user.id)
+    if (body.action === 'chat') return await handleChat(body, admin, userClient, user.id)
     return jsonResponse({ error: 'Ukjent handling' }, 400)
   } catch (err) {
     console.error(err)
@@ -225,4 +272,116 @@ async function handleDiagnose(
   if (error) throw new Error(`Kunne ikke lagre diagnose: ${error.message}`)
 
   return jsonResponse(result)
+}
+
+async function handleChat(
+  body: Body,
+  admin: ReturnType<typeof createClient>,
+  userClient: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<Response> {
+  const plantId = body.plant_id
+  const message = (body.message ?? '').trim()
+  if (!plantId) return jsonResponse({ error: 'Mangler plante' }, 400)
+  if (!message) return jsonResponse({ error: 'Mangler melding' }, 400)
+  if (message.length > 2000) return jsonResponse({ error: 'Meldingen er for lang' }, 400)
+
+  // Bekreft at brukeren har tilgang til planten (RLS via brukerklienten).
+  const { data: plant, error: pErr } = await userClient
+    .from('plants')
+    .select('id')
+    .eq('id', plantId)
+    .maybeSingle()
+  if (pErr || !plant) return jsonResponse({ error: 'Ingen tilgang til planten' }, 403)
+
+  // Egen dagsgrense for chat.
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+  const { count } = await admin
+    .from('plant_chat_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('role', 'user')
+    .gte('created_at', since)
+  if ((count ?? 0) >= MAX_CHAT_PER_DAY) {
+    return jsonResponse(
+      { error: `Dagsgrensen for chat (${MAX_CHAT_PER_DAY}) er nådd. Prøv igjen i morgen.` },
+      429,
+    )
+  }
+
+  // Lagre brukerens melding, og hent samtalehistorikken (siste 20).
+  await admin
+    .from('plant_chat_messages')
+    .insert({ plant_id: plantId, user_id: userId, role: 'user', content: message })
+  const { data: rows } = await admin
+    .from('plant_chat_messages')
+    .select('role, content')
+    .eq('plant_id', plantId)
+    .order('created_at', { ascending: true })
+    .limit(20)
+
+  const system =
+    'Du er Planto – en vennlig, kunnskapsrik hjelper for stueplanter. Svar kort, ' +
+    'konkret og praktisk på norsk, som en hjelpsom gartner. Skriv naturlig (ikke JSON). ' +
+    'Bruk informasjonen om planten under når den er relevant. Er noe usikkert eller ' +
+    'avhengig av forhold (lys, årstid, potte), så si det framfor å gjette skråsikkert.\n\n' +
+    'Om planten brukeren spør om:\n' +
+    buildPlantContext(body.context ?? {})
+
+  const messages = normalizeMessages(
+    (rows ?? []) as ChatMsg[],
+  )
+
+  const reply = await callClaudeMessages({ system, messages, maxTokens: 800 })
+
+  await admin
+    .from('plant_chat_messages')
+    .insert({ plant_id: plantId, user_id: userId, role: 'assistant', content: reply })
+
+  return jsonResponse({ reply })
+}
+
+/** Bygger en lesbar kontekstblokk om planten til chat-systemprompten. */
+function buildPlantContext(ctx: Record<string, unknown>): string {
+  const v = (k: string) => {
+    const x = ctx[k]
+    return x === null || x === undefined || x === '' ? null : String(x)
+  }
+  const lines = [
+    v('nickname') ? `- Kallenavn: ${v('nickname')}` : null,
+    v('species') ? `- Art: ${v('species')}` : null,
+    v('latin_name') ? `- Latinsk navn: ${v('latin_name')}` : null,
+    v('location') ? `- Plassering: ${v('location')}` : null,
+    v('light_needs') ? `- Lysbehov: ${v('light_needs')}` : null,
+    v('water_interval_days') ? `- Vanneintervall: hver ${v('water_interval_days')}. dag` : null,
+    v('fertilize_interval_days')
+      ? `- Gjødslingsintervall: hver ${v('fertilize_interval_days')}. dag`
+      : null,
+    v('repot_interval_months') ? `- Ompotting: hver ${v('repot_interval_months')}. måned` : null,
+    ctx['toxic_to_pets'] === true
+      ? '- Giftig for kjæledyr: ja'
+      : ctx['toxic_to_pets'] === false
+        ? '- Giftig for kjæledyr: nei'
+        : null,
+    v('last_watered_at') ? `- Sist vannet: ${v('last_watered_at')}` : null,
+    v('next_water_due') ? `- Neste vanning forfaller: ${v('next_water_due')}` : null,
+    v('latest_diagnosis') ? `- Siste helsevurdering: ${v('latest_diagnosis')}` : null,
+  ].filter(Boolean)
+  return lines.length > 0 ? lines.join('\n') : '- (ingen ekstra detaljer registrert)'
+}
+
+/**
+ * Sørger for at meldingene veksler bruker/assistent og starter med bruker, som
+ * Claude krever. Slår sammen påfølgende meldinger med samme rolle (kan oppstå
+ * hvis et tidligere svar feilet etter at brukermeldingen ble lagret).
+ */
+function normalizeMessages(msgs: ChatMsg[]): ChatMsg[] {
+  const out: ChatMsg[] = []
+  for (const m of msgs) {
+    const last = out[out.length - 1]
+    if (last && last.role === m.role) last.content += '\n\n' + m.content
+    else out.push({ role: m.role, content: m.content })
+  }
+  while (out.length > 0 && out[0].role !== 'user') out.shift()
+  return out
 }

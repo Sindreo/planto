@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { logWatering, undoWatering } from '../lib/care'
+import { diagnosePlant } from '../lib/ai'
 import { formatDateTime, relativeDay, waterStatus, waterStatusLabel } from '../lib/format'
 import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
 import { translateError } from '../lib/errors'
 import { useToast } from '../components/Toast'
 import type { CareEvent, Diagnosis, Plant, Profile } from '../types/db'
+import type { DiagnosisResult } from '../types/ai'
 import DiagnosePanel from '../components/DiagnosePanel'
-import DiagnosisCard from '../components/DiagnosisCard'
+import DiagnosisCard, { diagnosisStatus } from '../components/DiagnosisCard'
+import PlantChat from '../components/PlantChat'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { Button, Skeleton } from '../components/ui'
 import { ArrowLeft, Close, Drop, Leaf, Note, Person, Pin, PlantMark } from '../components/icons'
@@ -18,7 +21,11 @@ export default function PlantDetailPage() {
   const { id } = useParams()
   const { session } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const toast = useToast()
+  const justCreated = (location.state as { justCreated?: boolean } | null)?.justCreated ?? false
+  const autoRanRef = useRef(false)
+  const [autoDiagnosing, setAutoDiagnosing] = useState(false)
   const [plant, setPlant] = useState<Plant | null>(null)
   const [events, setEvents] = useState<CareEvent[]>([])
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([])
@@ -89,6 +96,37 @@ export default function PlantDetailPage() {
       cancelled = true
     }
   }, [plant?.species_id])
+
+  // Ved nyregistrert plante med bilde: kjør en automatisk helsesjekk én gang,
+  // så brukeren med en gang ser om planten er frisk eller trenger tiltak.
+  useEffect(() => {
+    if (!justCreated || autoRanRef.current) return
+    if (loading || !plant || !session?.user) return
+    if (!plant.photo_url || diagnoses.length > 0) return
+    autoRanRef.current = true
+    // Fjern nav-state så en refresh ikke trigger sjekken på nytt.
+    window.history.replaceState({}, '')
+    void (async () => {
+      setAutoDiagnosing(true)
+      try {
+        await diagnosePlant(
+          {
+            imageUrls: [plant.photo_url!],
+            plantId: plant.id,
+            species: plant.species,
+            location: plant.location,
+            lastWatered: plant.last_watered_at,
+          },
+          session.access_token,
+        )
+        await load()
+      } catch {
+        // Stille – brukeren kan kjøre «Sjekk planten» manuelt.
+      } finally {
+        setAutoDiagnosing(false)
+      }
+    })()
+  }, [justCreated, loading, plant, diagnoses.length, session, load])
 
   // Lukk fullskjerm-bildet med Escape.
   useEffect(() => {
@@ -172,6 +210,7 @@ export default function PlantDetailPage() {
   }
 
   const status = waterStatus(plant)
+  const latestResult = (diagnoses[0]?.result_json as DiagnosisResult | null) ?? null
 
   return (
     <div className="space-y-5">
@@ -185,6 +224,8 @@ export default function PlantDetailPage() {
           {error}
         </div>
       )}
+
+      <HealthBanner result={latestResult} loading={autoDiagnosing} />
 
       {/* Topp-kort */}
       <div className="overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-sm">
@@ -283,6 +324,9 @@ export default function PlantDetailPage() {
         )}
       </section>
 
+      {/* Spør Planto om planten */}
+      <PlantChat plant={plant} speciesLatin={speciesLatin} latestDiagnosis={latestResult} />
+
       {/* Kjør ny diagnose */}
       <DiagnosePanel plant={plant} onComplete={load} />
 
@@ -334,6 +378,30 @@ export default function PlantDetailPage() {
           />
         </div>
       )}
+    </div>
+  )
+}
+
+/** Tydelig helsestatus øverst: «Ser frisk ut» / «Følg med» / «Trenger hjelp». */
+function HealthBanner({ result, loading }: { result: DiagnosisResult | null; loading: boolean }) {
+  if (loading) {
+    return (
+      <div className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3">
+        <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />
+        <p className="text-sm font-medium text-brand-800">Planto sjekker planten…</p>
+      </div>
+    )
+  }
+  if (!result) return null
+  const s = diagnosisStatus(result)
+  const action = result.actions?.[0]
+  return (
+    <div className={`rounded-2xl px-4 py-3 ${s.bg}`}>
+      <div className="flex items-center gap-3">
+        <s.Icon className={`h-6 w-6 shrink-0 ${s.text}`} />
+        <p className={`font-bold ${s.text}`}>{s.label}</p>
+      </div>
+      {action && <p className="mt-1 pl-9 text-sm text-gray-700">{action}</p>}
     </div>
   )
 }
