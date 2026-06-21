@@ -42,36 +42,58 @@ Deno.serve(async (req) => {
       return json({ ok: true, sent: 0, message: 'Ingen planter forfaller.' })
     }
 
-    // Grupper planter per husstand.
-    const byHousehold = new Map<string, DuePlant[]>()
-    for (const p of due) {
-      const list = byHousehold.get(p.household_id) ?? []
-      list.push(p)
-      byHousehold.set(p.household_id, list)
+    // Hent de ansvarlige for de forfalte plantene.
+    const plantIds = due.map((p) => p.id)
+    const { data: respRows } = await admin
+      .from('plant_responsibles')
+      .select('plant_id, user_id')
+      .in('plant_id', plantIds)
+    const responsibleByPlant = new Map<string, string[]>()
+    for (const r of (respRows ?? []) as { plant_id: string; user_id: string }[]) {
+      const list = responsibleByPlant.get(r.plant_id) ?? []
+      list.push(r.user_id)
+      responsibleByPlant.set(r.plant_id, list)
     }
 
-    // Hent medlemmer per husstand.
-    const householdIds = [...byHousehold.keys()]
+    // Husstandsmedlemmer brukes som fallback når en plante ikke har noen
+    // ansvarlig satt, så den ikke blir glemt.
+    const householdIds = [...new Set(due.map((p) => p.household_id))]
     const { data: profiles } = await admin
       .from('profiles')
-      .select('id, household_id, display_name')
+      .select('id, household_id')
       .in('household_id', householdIds)
+    const membersByHousehold = new Map<string, string[]>()
+    for (const m of (profiles ?? []) as { id: string; household_id: string }[]) {
+      const list = membersByHousehold.get(m.household_id) ?? []
+      list.push(m.id)
+      membersByHousehold.set(m.household_id, list)
+    }
 
-    // Bygg e-post-kart (auth.users har e-posten).
+    // Knytt hver plante til mottakerne sine: de ansvarlige, eller hele
+    // husstanden hvis ingen er satt.
+    const plantsByUser = new Map<string, DuePlant[]>()
+    for (const p of due) {
+      const responsibles = responsibleByPlant.get(p.id)
+      const recipients =
+        responsibles && responsibles.length > 0
+          ? responsibles
+          : (membersByHousehold.get(p.household_id) ?? [])
+      for (const userId of recipients) {
+        const list = plantsByUser.get(userId) ?? []
+        list.push(p)
+        plantsByUser.set(userId, list)
+      }
+    }
+
+    // Send én e-post per mottaker med kun deres egne planter.
     const emailById = await loadEmails(admin)
-
     let sent = 0
-    for (const householdId of householdIds) {
-      const members = (profiles ?? []).filter((m) => m.household_id === householdId)
-      const plantsForHome = byHousehold.get(householdId)!
-      const recipients = members
-        .map((m) => emailById.get(m.id))
-        .filter((e): e is string => Boolean(e))
-      if (recipients.length === 0) continue
-
-      const html = buildEmailHtml(plantsForHome, today)
-      await sendEmail(recipients, `Planto – ${plantsForHome.length} plante(r) trenger vann`, html)
-      sent += recipients.length
+    for (const [userId, userPlants] of plantsByUser) {
+      const email = emailById.get(userId)
+      if (!email) continue
+      const html = buildEmailHtml(userPlants, today)
+      await sendEmail([email], `Planto – ${userPlants.length} plante(r) trenger vann`, html)
+      sent += 1
     }
 
     return json({ ok: true, sent })
