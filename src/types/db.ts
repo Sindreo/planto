@@ -48,7 +48,12 @@ export type Plant = {
   last_watered_at: string | null
   last_fertilized_at: string | null
   next_water_due: string | null
-  responsible_user_id: string | null
+  created_at: string
+}
+
+export type PlantResponsible = {
+  plant_id: string
+  user_id: string
   created_at: string
 }
 
@@ -79,6 +84,7 @@ export interface Database {
       households: { Row: Household; Insert: Partial<Household>; Update: Partial<Household>; Relationships: [] }
       profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile>; Relationships: [] }
       plants: { Row: Plant; Insert: Partial<Plant>; Update: Partial<Plant>; Relationships: [] }
+      plant_responsibles: { Row: PlantResponsible; Insert: Partial<PlantResponsible>; Update: Partial<PlantResponsible>; Relationships: [] }
       care_events: { Row: CareEvent; Insert: Partial<CareEvent>; Update: Partial<CareEvent>; Relationships: [] }
       diagnoses: { Row: Diagnosis; Insert: Partial<Diagnosis>; Update: Partial<Diagnosis>; Relationships: [] }
       species: { Row: Species; Insert: Partial<Species>; Update: Partial<Species>; Relationships: [] }

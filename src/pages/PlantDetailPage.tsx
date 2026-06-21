@@ -23,6 +23,7 @@ export default function PlantDetailPage() {
   const [events, setEvents] = useState<CareEvent[]>([])
   const [diagnoses, setDiagnoses] = useState<Diagnosis[]>([])
   const [members, setMembers] = useState<Record<string, string>>({})
+  const [responsibleIds, setResponsibleIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [watering, setWatering] = useState(false)
@@ -31,21 +32,23 @@ export default function PlantDetailPage() {
 
   const load = useCallback(async () => {
     if (!id) return
-    const [{ data: p, error: pe }, { data: ev }, { data: dg }, { data: mem }] = await Promise.all([
-      supabase.from('plants').select('*').eq('id', id).maybeSingle(),
-      supabase
-        .from('care_events')
-        .select('*')
-        .eq('plant_id', id)
-        .order('created_at', { ascending: false })
-        .limit(50),
-      supabase
-        .from('diagnoses')
-        .select('*')
-        .eq('plant_id', id)
-        .order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, display_name'),
-    ])
+    const [{ data: p, error: pe }, { data: ev }, { data: dg }, { data: mem }, { data: resp }] =
+      await Promise.all([
+        supabase.from('plants').select('*').eq('id', id).maybeSingle(),
+        supabase
+          .from('care_events')
+          .select('*')
+          .eq('plant_id', id)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('diagnoses')
+          .select('*')
+          .eq('plant_id', id)
+          .order('created_at', { ascending: false }),
+        supabase.from('profiles').select('id, display_name'),
+        supabase.from('plant_responsibles').select('user_id').eq('plant_id', id),
+      ])
     if (pe) setError(pe.message)
     setPlant(p)
     setEvents(ev ?? [])
@@ -55,6 +58,7 @@ export default function PlantDetailPage() {
       map[m.id] = m.display_name ?? 'Noen'
     })
     setMembers(map)
+    setResponsibleIds(((resp as { user_id: string }[] | null) ?? []).map((r) => r.user_id))
     setLoading(false)
   }, [id])
 
@@ -190,10 +194,9 @@ export default function PlantDetailPage() {
               )}
               <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
                 <Person className="h-3.5 w-3.5 shrink-0" />
-                Ansvarlig:{' '}
-                {plant.responsible_user_id
-                  ? (members[plant.responsible_user_id] ?? 'Noen')
-                  : 'Ingen'}
+                {responsibleIds.length > 0
+                  ? `Ansvarlige: ${responsibleIds.map((uid) => members[uid] ?? 'Noen').join(', ')}`
+                  : 'Ingen ansvarlige'}
               </p>
             </div>
             <Link

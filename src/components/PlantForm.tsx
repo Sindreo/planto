@@ -9,10 +9,15 @@ import { upsertSpecies, speciesToGuide } from '../lib/species'
 import { nextDueDate } from '../lib/care'
 import { todayISO } from '../lib/format'
 import { translateError } from '../lib/errors'
-import { listHouseholdMembers, type HouseholdMember } from '../lib/household'
+import {
+  getPlantResponsibles,
+  listHouseholdMembers,
+  setPlantResponsibles,
+  type HouseholdMember,
+} from '../lib/household'
 import type { Plant, Species } from '../types/db'
 import type { CareGuideResult, DiagnosisResult, SpeciesCandidate } from '../types/ai'
-import { Alert, Button, Checkbox, Input, Select, Textarea } from './ui'
+import { Alert, Button, Checkbox, Input, Textarea } from './ui'
 import { useToast } from './Toast'
 import IdentifySpeciesButton from './IdentifySpeciesButton'
 import CareGuideButton from './CareGuideButton'
@@ -55,11 +60,18 @@ export default function PlantForm({ initial }: Props) {
   // Lar brukeren overstyre når planten skal vannes neste gang.
   const [nextWaterDue, setNextWaterDue] = useState(initial?.next_water_due?.slice(0, 10) ?? '')
 
-  // Ansvarlig husstandsmedlem. Standard ved ny plante er innlogget bruker.
+  // Ansvarlige husstandsmedlemmer (flere mulig). Standard ved ny plante er
+  // innlogget bruker. Kun de ansvarlige får vanne-varslingen på e-post.
   const [members, setMembers] = useState<HouseholdMember[]>([])
-  const [responsibleId, setResponsibleId] = useState<string | null>(
-    initial?.responsible_user_id ?? session?.user?.id ?? null,
+  const [responsibleIds, setResponsibleIds] = useState<string[]>(
+    isEdit ? [] : session?.user?.id ? [session.user.id] : [],
   )
+
+  function toggleResponsible(userId: string, on: boolean) {
+    setResponsibleIds((prev) =>
+      on ? [...new Set([...prev, userId])] : prev.filter((id) => id !== userId),
+    )
+  }
 
   // Gjenbruk det allerede opplastede diagnose-bildet som plantens bilde.
   const photoUrl = initial?.photo_url ?? carriedPhotoUrl
@@ -148,7 +160,8 @@ export default function PlantForm({ initial }: Props) {
     }
   }
 
-  // Hent husstandsmedlemmer til ansvarlig-nedtrekkslisten.
+  // Hent husstandsmedlemmer til ansvarlig-listen, og last inn plantens
+  // nåværende ansvarlige ved redigering.
   useEffect(() => {
     let cancelled = false
     void listHouseholdMembers()
@@ -156,12 +169,21 @@ export default function PlantForm({ initial }: Props) {
         if (!cancelled) setMembers(m)
       })
       .catch(() => {
-        // Stille – nedtrekkslisten faller tilbake til gjeldende ansvarlig.
+        // Stille – lista vises tom om medlemmene ikke kan hentes.
       })
+    if (isEdit && initial) {
+      void getPlantResponsibles(initial.id)
+        .then((ids) => {
+          if (!cancelled) setResponsibleIds(ids)
+        })
+        .catch(() => {
+          // Stille – beholder tomt utvalg om henting feiler.
+        })
+    }
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [isEdit, initial])
 
   // Kom man hit fra «Sjekk en plante» med et bilde, finn arten automatisk fra
   // bildet slik at art og stell er forhåndsutfylt (kan endres etterpå).
@@ -207,7 +229,6 @@ export default function PlantForm({ initial }: Props) {
         toxic_to_pets: toxic,
         notes: emptyToNull(notes),
         photo_url: finalPhotoUrl || null,
-        responsible_user_id: responsibleId,
       }
 
       // Neste vanning: brukerens eksplisitte dato vinner, ellers behold/auto-beregn.
@@ -230,6 +251,7 @@ export default function PlantForm({ initial }: Props) {
           .update({ ...row, next_water_due: next })
           .eq('id', initial.id)
         if (error) throw error
+        await setPlantResponsibles(initial.id, responsibleIds)
         toast({ message: 'Endringer lagret' })
         navigate(`/plants/${initial.id}`)
       } else {
@@ -239,6 +261,7 @@ export default function PlantForm({ initial }: Props) {
           .select()
           .single()
         if (error) throw error
+        await setPlantResponsibles(data.id, responsibleIds)
         // Kom man hit fra en løs diagnose, knytt den til den nye planten.
         if (fromDiagnosisId) {
           try {
@@ -320,18 +343,26 @@ export default function PlantForm({ initial }: Props) {
         onChange={(e) => setLocation(e.target.value)}
       />
 
-      <Select
-        label="Ansvarlig"
-        value={responsibleId ?? ''}
-        onChange={(e) => setResponsibleId(e.target.value || null)}
-      >
-        <option value="">Ingen ansvarlig</option>
-        {members.map((m) => (
-          <option key={m.id} value={m.id}>
-            {(m.display_name ?? 'Uten navn') + (m.id === session?.user?.id ? ' (meg)' : '')}
-          </option>
-        ))}
-      </Select>
+      <fieldset>
+        <legend className="mb-1 block text-sm font-medium text-gray-700">Ansvarlige</legend>
+        <p className="mb-2 text-xs text-gray-500">
+          Kun de ansvarlige får e-postvarsel når planten må vannes.
+        </p>
+        <div className="space-y-2">
+          {members.length === 0 ? (
+            <p className="text-sm text-gray-500">Ingen husstandsmedlemmer funnet.</p>
+          ) : (
+            members.map((m) => (
+              <Checkbox
+                key={m.id}
+                label={(m.display_name ?? 'Uten navn') + (m.id === session?.user?.id ? ' (meg)' : '')}
+                checked={responsibleIds.includes(m.id)}
+                onChange={(on) => toggleResponsible(m.id, on)}
+              />
+            ))
+          )}
+        </div>
+      </fieldset>
 
       <div className="rounded-2xl border border-brand-100 bg-brand-50/50 p-4">
         <div className="mb-3 flex items-center justify-between">
