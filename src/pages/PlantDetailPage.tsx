@@ -23,7 +23,9 @@ export default function PlantDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
-  const justCreated = (location.state as { justCreated?: boolean } | null)?.justCreated ?? false
+  const navState = location.state as { justCreated?: boolean; photoUrls?: string[] } | null
+  const justCreated = navState?.justCreated ?? false
+  const createdPhotoUrls = navState?.photoUrls
   const autoRanRef = useRef(false)
   const [autoDiagnosing, setAutoDiagnosing] = useState(false)
   const [plant, setPlant] = useState<Plant | null>(null)
@@ -109,9 +111,14 @@ export default function PlantDetailPage() {
     void (async () => {
       setAutoDiagnosing(true)
       try {
+        // Bruk alle bildene fra registreringen om de finnes, ellers plantens bilde.
+        const imageUrls =
+          createdPhotoUrls && createdPhotoUrls.length > 0
+            ? createdPhotoUrls.slice(0, 3)
+            : [plant.photo_url!]
         await diagnosePlant(
           {
-            imageUrls: [plant.photo_url!],
+            imageUrls,
             plantId: plant.id,
             species: plant.species,
             location: plant.location,
