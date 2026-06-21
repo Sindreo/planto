@@ -60,10 +60,9 @@ export default function DiagnosePage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-xl font-bold text-gray-900">Sjekk en plante</h1>
+      <h1 className="mb-1 text-xl font-bold text-gray-900">Sjekk plante</h1>
       <p className="mb-6 text-sm text-gray-500">
-        Last opp bilde, så sjekker Planto om den er frisk og hva du bør gjøre – uten
-        at planten må være registrert.
+        Last opp bilde, så sjekker vi hvordan det står til med planten.
       </p>
 
       {!diagnosis ? (
