@@ -9,9 +9,10 @@ import { upsertSpecies, speciesToGuide } from '../lib/species'
 import { nextDueDate } from '../lib/care'
 import { todayISO } from '../lib/format'
 import { translateError } from '../lib/errors'
+import { listHouseholdMembers, type HouseholdMember } from '../lib/household'
 import type { Plant, Species } from '../types/db'
 import type { CareGuideResult, DiagnosisResult, SpeciesCandidate } from '../types/ai'
-import { Alert, Button, Checkbox, Input, Textarea } from './ui'
+import { Alert, Button, Checkbox, Input, Select, Textarea } from './ui'
 import { useToast } from './Toast'
 import IdentifySpeciesButton from './IdentifySpeciesButton'
 import CareGuideButton from './CareGuideButton'
@@ -53,6 +54,12 @@ export default function PlantForm({ initial }: Props) {
   const [notes, setNotes] = useState(initial?.notes ?? '')
   // Lar brukeren overstyre når planten skal vannes neste gang.
   const [nextWaterDue, setNextWaterDue] = useState(initial?.next_water_due?.slice(0, 10) ?? '')
+
+  // Ansvarlig husstandsmedlem. Standard ved ny plante er innlogget bruker.
+  const [members, setMembers] = useState<HouseholdMember[]>([])
+  const [responsibleId, setResponsibleId] = useState<string | null>(
+    initial?.responsible_user_id ?? session?.user?.id ?? null,
+  )
 
   // Gjenbruk det allerede opplastede diagnose-bildet som plantens bilde.
   const photoUrl = initial?.photo_url ?? carriedPhotoUrl
@@ -141,6 +148,21 @@ export default function PlantForm({ initial }: Props) {
     }
   }
 
+  // Hent husstandsmedlemmer til ansvarlig-nedtrekkslisten.
+  useEffect(() => {
+    let cancelled = false
+    void listHouseholdMembers()
+      .then((m) => {
+        if (!cancelled) setMembers(m)
+      })
+      .catch(() => {
+        // Stille – nedtrekkslisten faller tilbake til gjeldende ansvarlig.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   // Kom man hit fra «Sjekk en plante» med et bilde, finn arten automatisk fra
   // bildet slik at art og stell er forhåndsutfylt (kan endres etterpå).
   useEffect(() => {
@@ -185,6 +207,7 @@ export default function PlantForm({ initial }: Props) {
         toxic_to_pets: toxic,
         notes: emptyToNull(notes),
         photo_url: finalPhotoUrl || null,
+        responsible_user_id: responsibleId,
       }
 
       // Neste vanning: brukerens eksplisitte dato vinner, ellers behold/auto-beregn.
@@ -296,6 +319,19 @@ export default function PlantForm({ initial }: Props) {
         value={location}
         onChange={(e) => setLocation(e.target.value)}
       />
+
+      <Select
+        label="Ansvarlig"
+        value={responsibleId ?? ''}
+        onChange={(e) => setResponsibleId(e.target.value || null)}
+      >
+        <option value="">Ingen ansvarlig</option>
+        {members.map((m) => (
+          <option key={m.id} value={m.id}>
+            {(m.display_name ?? 'Uten navn') + (m.id === session?.user?.id ? ' (meg)' : '')}
+          </option>
+        ))}
+      </Select>
 
       <div className="rounded-2xl border border-brand-100 bg-brand-50/50 p-4">
         <div className="mb-3 flex items-center justify-between">

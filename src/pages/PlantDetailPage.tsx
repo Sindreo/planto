@@ -12,7 +12,7 @@ import DiagnosePanel from '../components/DiagnosePanel'
 import DiagnosisCard from '../components/DiagnosisCard'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { Button, Skeleton } from '../components/ui'
-import { ArrowLeft, Close, Drop, Leaf, Note, Pin, PlantMark } from '../components/icons'
+import { ArrowLeft, Close, Drop, Leaf, Note, Person, Pin, PlantMark } from '../components/icons'
 
 export default function PlantDetailPage() {
   const { id } = useParams()
@@ -188,6 +188,13 @@ export default function PlantDetailPage() {
                   {plant.location}
                 </p>
               )}
+              <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
+                <Person className="h-3.5 w-3.5 shrink-0" />
+                Ansvarlig:{' '}
+                {plant.responsible_user_id
+                  ? (members[plant.responsible_user_id] ?? 'Noen')
+                  : 'Ingen'}
+              </p>
             </div>
             <Link
               to={`/plants/${plant.id}/rediger`}
