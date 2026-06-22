@@ -10,11 +10,30 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
-const MODEL = 'claude-sonnet-4-6'
+// Modellene er konfigurerbare via miljøvariabler, så de kan byttes (f.eks. til
+// Opus for bildeoppgaver) uten kodeendring. Standardene under er trygge fallbacks.
+const MODEL = Deno.env.get('AI_VISION_MODEL') ?? 'claude-sonnet-4-6'
 // Chat er ren tekst-rådgivning – Haiku er raskt og rimelig og holder godt her.
-const MODEL_CHAT = 'claude-haiku-4-5-20251001'
+const MODEL_CHAT = Deno.env.get('AI_CHAT_MODEL') ?? 'claude-haiku-4-5-20251001'
 const MAX_AI_PER_DAY = Number(Deno.env.get('MAX_AI_PER_DAY') ?? '40')
 const MAX_CHAT_PER_DAY = Number(Deno.env.get('MAX_CHAT_PER_DAY') ?? '60')
+// Stopp henging mot Anthropic så tilkoblinger ikke holdes åpne i det uendelige.
+const AI_TIMEOUT_MS = Number(Deno.env.get('AI_TIMEOUT_MS') ?? '90000')
+
+/** fetch med timeout via AbortController. */
+async function fetchWithTimeout(
+  url: string,
+  opts: RequestInit,
+  ms: number,
+): Promise<Response> {
+  const ac = new AbortController()
+  const timer = setTimeout(() => ac.abort(), ms)
+  try {
+    return await fetch(url, { ...opts, signal: ac.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,20 +63,24 @@ async function callClaude(params: {
 
   const content: unknown[] = [...(params.images ?? []), { type: 'text', text: params.text }]
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
+  const res = await fetchWithTimeout(
+    'https://api.anthropic.com/v1/messages',
+    {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: params.maxTokens ?? 1024,
+        system: params.system,
+        messages: [{ role: 'user', content }],
+      }),
     },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: params.maxTokens ?? 1024,
-      system: params.system,
-      messages: [{ role: 'user', content }],
-    }),
-  })
+    AI_TIMEOUT_MS,
+  )
 
   if (!res.ok) {
     const detail = await res.text()
@@ -137,9 +160,27 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Ukjent handling' }, 400)
   } catch (err) {
     console.error(err)
+    await logError('plant-ai', err)
     return jsonResponse({ error: err instanceof Error ? err.message : String(err) }, 500)
   }
 })
+
+/** Beste forsøk på å logge en feil til error_logs (uten å kaste selv). */
+async function logError(source: string, err: unknown): Promise<void> {
+  try {
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
+    await admin.from('error_logs').insert({
+      source,
+      message: err instanceof Error ? err.message : String(err),
+      detail: err instanceof Error ? (err.stack ?? '').slice(0, 4000) : null,
+    })
+  } catch {
+    // ignorer – logging skal aldri velte funksjonen
+  }
+}
 
 async function handleIdentify(body: Body): Promise<Response> {
   const b64 = body.images?.[0]
@@ -299,15 +340,19 @@ async function handleChat(
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
   if (!apiKey) return jsonResponse({ error: 'Mangler ANTHROPIC_API_KEY i Edge Function-miljøet' }, 500)
 
-  const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
+  const upstream = await fetchWithTimeout(
+    'https://api.anthropic.com/v1/messages',
+    {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ model: MODEL_CHAT, max_tokens: 800, stream: true, system, messages }),
     },
-    body: JSON.stringify({ model: MODEL_CHAT, max_tokens: 800, stream: true, system, messages }),
-  })
+    AI_TIMEOUT_MS,
+  )
   if (!upstream.ok || !upstream.body) {
     const detail = await upstream.text().catch(() => '')
     return jsonResponse({ error: `Claude-feil (${upstream.status}): ${detail.slice(0, 200)}` }, 502)
