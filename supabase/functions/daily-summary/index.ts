@@ -85,23 +85,57 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Send én e-post per mottaker med kun deres egne planter.
+    // Send én e-post per mottaker med kun deres egne planter. Hver utsending er
+    // isolert: feiler én (f.eks. Resend-hikke), fortsetter resten, og feilen
+    // logges i stedet for å velte hele kjøringen.
     const emailById = await loadEmails(admin)
     let sent = 0
+    let failed = 0
     for (const [userId, userPlants] of plantsByUser) {
       const email = emailById.get(userId)
       if (!email) continue
       const html = buildEmailHtml(userPlants, today)
-      await sendEmail([email], `Planto – ${userPlants.length} plante(r) trenger vann`, html)
-      sent += 1
+      try {
+        await sendEmail([email], `Planto – ${userPlants.length} plante(r) trenger vann`, html)
+        sent += 1
+      } catch (err) {
+        failed += 1
+        await logError(admin, 'daily-summary', `Utsending feilet for ${userId}`, err)
+      }
     }
 
-    return json({ ok: true, sent })
+    return json({ ok: true, sent, failed })
   } catch (err) {
     console.error(err)
+    await logError(null, 'daily-summary', 'kjøring feilet', err)
     return json({ error: err instanceof Error ? err.message : String(err) }, 500)
   }
 })
+
+/** Beste forsøk på å logge en feil til error_logs (uten å kaste selv). */
+async function logError(
+  admin: ReturnType<typeof createClient> | null,
+  source: string,
+  context: string,
+  err: unknown,
+): Promise<void> {
+  try {
+    const client =
+      admin ??
+      createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      )
+    await client.from('error_logs').insert({
+      source,
+      context,
+      message: err instanceof Error ? err.message : String(err),
+      detail: err instanceof Error ? (err.stack ?? '').slice(0, 4000) : null,
+    })
+  } catch {
+    // ignorer
+  }
+}
 
 /**
  * Dagens dato (YYYY-MM-DD) i appens tidssone – ikke UTC. Dette holder e-postens

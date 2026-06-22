@@ -42,3 +42,28 @@ Edge Functions kan også limes inn og deployes manuelt i Supabase-dashbordet:
 
 SQL i `supabase/migrations/` kjøres i Supabase **SQL Editor** (lim inn og Run), i
 nummerrekkefølge.
+
+## Edge function-secrets (valgfrie)
+
+Settes på funksjonen i Supabase (Edge Functions → secrets). Leses i kjøretid.
+
+| Variabel | Funksjon | Standard | Forklaring |
+|---|---|---|---|
+| `AI_VISION_MODEL` | plant-ai | `claude-sonnet-4-6` | Modell for identify/diagnose/careguide. Sett til en Opus-modell for bedre bildeanalyse. |
+| `AI_CHAT_MODEL` | plant-ai | Haiku | Modell for chat. |
+| `AI_TIMEOUT_MS` | plant-ai | `90000` | Timeout mot Anthropic. |
+| `MAX_AI_PER_DAY` / `MAX_CHAT_PER_DAY` | plant-ai | 40 / 60 | Dagsgrenser per bruker. |
+| `APP_TIMEZONE` | daily-summary | `Europe/Oslo` | Tidssone for «forfaller i dag». |
+| `CRON_SECRET` | daily-summary | – | Beskytter endepunktet. **Bør settes.** |
+
+## E-post-deliverability (DNS)
+
+For at den daglige e-posten ikke havner i spam, legg til hos domeneleverandøren:
+
+1. **SPF + DKIM** – følg oppskriften under Resend → Domains (verifiserer domenet).
+2. **DMARC** – TXT-post på `_dmarc.planto.space`:
+   ```
+   v=DMARC1; p=none; rua=mailto:postmaster@planto.space
+   ```
+   Start med `p=none` (kun overvåking); stram til `quarantine`/`reject` når SPF/DKIM
+   er bekreftet å passere.
