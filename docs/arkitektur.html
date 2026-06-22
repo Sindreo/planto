@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Planto · Arkitektur</title>
+<style>
+  :root{
+    --brand:#16a34a; --brand-d:#166534; --brand-l:#dcfce7; --bg:#f0fdf4;
+    --ink:#14241c; --muted:#5b6b62; --line:#bbf7d0;
+    --red:#dc2626; --redbg:#fee2e2; --amber:#d97706; --amberbg:#fef3c7; --yellow:#ca8a04; --yellowbg:#fef9c3;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink);background:var(--bg)}
+  header{display:flex;align-items:center;gap:12px;padding:16px 20px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--brand);display:grid;place-items:center;color:#fff;font-weight:800}
+  header h1{font-size:18px;margin:0}
+  header span{color:var(--muted);font-size:13px}
+  nav{display:flex;gap:6px;flex-wrap:wrap;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:67px;z-index:4}
+  nav button{border:1px solid var(--line);background:#fff;color:var(--brand-d);padding:7px 14px;border-radius:999px;font-weight:600;cursor:pointer;font-size:14px}
+  nav button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+  main{max-width:980px;margin:0 auto;padding:20px 16px 60px}
+  section{display:none;animation:fade .25s ease}
+  section.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 12px}
+  .hint{color:var(--muted);font-size:13px;margin:6px 0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+  .grid{display:grid;gap:12px}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--brand-l);color:var(--brand-d)}
+  .badge.sonnet{background:#e0e7ff;color:#3730a3}.badge.haiku{background:#fae8ff;color:#86198f}
+  /* SVG diagram */
+  .diagram{width:100%;height:auto;background:#fff;border:1px solid var(--line);border-radius:16px}
+  .node{cursor:pointer}
+  .node rect{transition:.15s}
+  .node:hover rect{filter:brightness(.97)}
+  .node.sel rect{stroke:var(--brand);stroke-width:3}
+  .nlabel{font:600 13px system-ui;fill:var(--ink)}
+  .nsub{font:11px system-ui;fill:var(--muted)}
+  .elabel{font:10px system-ui;fill:var(--muted)}
+  .detail{margin-top:12px;min-height:54px;border-left:3px solid var(--brand);background:#fff;border-radius:8px;padding:10px 14px}
+  .detail b{color:var(--brand-d)}
+  /* data model */
+  .ring{border:2px dashed var(--brand);border-radius:18px;padding:14px;position:relative;background:#fff}
+  .ring::before{content:'🔒 husstand-isolert (RLS)';position:absolute;top:-11px;left:14px;background:var(--bg);padding:0 8px;font-size:12px;color:var(--brand-d);font-weight:700}
+  .tbl{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--card)}
+  .tbl .t{font-weight:700;font-size:14px}
+  .tbl .c{font-size:12px;color:var(--muted)}
+  .tag{font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:var(--brand-l);color:var(--brand-d);margin-left:6px}
+  /* AI cards */
+  .ai{display:flex;flex-direction:column;gap:6px}
+  .ai .io{font-size:12px;color:var(--muted)}
+  .ai .save{font-size:11px;font-weight:700}
+  /* flow player */
+  .flowbar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+  .flowbar button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-weight:600;cursor:pointer;font-size:13px}
+  .flowbar button.on{background:var(--brand-d);color:#fff;border-color:var(--brand-d)}
+  .pipe{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:6px 0}
+  .pnode{flex:0 0 auto;min-width:96px;text-align:center;border:1px solid var(--line);border-radius:12px;padding:8px 6px;background:#fff;font-size:12px;font-weight:600;color:var(--muted);opacity:.45;transition:.2s}
+  .pnode.lit{opacity:1;border-color:var(--brand);color:var(--ink);box-shadow:0 4px 14px rgba(22,163,74,.18)}
+  .parrow{flex:0 0 auto;align-self:center;color:var(--line);padding:0 4px;font-size:18px}
+  .step{margin-top:14px;display:flex;align-items:center;gap:12px}
+  .stepnum{flex:0 0 30px;height:30px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800}
+  .stept{font-size:14px}
+  .stept code{background:var(--brand-l);color:var(--brand-d);padding:1px 6px;border-radius:6px;font-size:12px}
+  .ctrl{display:flex;gap:8px;margin-top:14px}
+  .ctrl button{flex:1;border:none;border-radius:10px;padding:10px;font-weight:700;cursor:pointer}
+  .ctrl .prev{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .ctrl .next{background:var(--brand);color:#fff}
+  .dots{display:flex;gap:5px;justify-content:center;margin-top:10px}
+  .dots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+  .dots i.on{background:var(--brand)}
+  /* scaling */
+  .sev{border-radius:14px;padding:12px 14px;border:1px solid}
+  .sev .lvl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+  .sev.r{background:var(--redbg);border-color:#fecaca}.sev.r .lvl{color:var(--red)}
+  .sev.o{background:var(--amberbg);border-color:#fde68a}.sev.o .lvl{color:var(--amber)}
+  .sev.y{background:var(--yellowbg);border-color:#fef08a}.sev.y .lvl{color:var(--yellow)}
+  .sev b{display:block;margin:2px 0}
+  .sev .fix{font-size:12px;color:var(--muted)}
+  .ok{background:#fff;border:1px dashed var(--brand);border-radius:14px;padding:12px 14px;color:var(--brand-d);font-weight:600}
+  .cols2{grid-template-columns:1fr 1fr}
+  .cols3{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:640px){.cols2,.cols3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🌱</div>
+  <div><h1>Planto · Arkitektur</h1><span>Interaktiv oversikt — klikk og bla</span></div>
+</header>
+
+<nav id="tabs">
+  <button class="on" data-t="ov">Oversikt</button>
+  <button data-t="dm">Datamodell</button>
+  <button data-t="ai">AI</button>
+  <button data-t="fl">Flyt</button>
+  <button data-t="sc">Skalering</button>
+</nav>
+
+<main>
+  <!-- OVERSIKT -->
+  <section id="ov" class="on">
+    <p class="hint">Klikk på en boks for detaljer ↓</p>
+    <svg class="diagram" viewBox="0 0 900 580" role="img">
+      <defs>
+        <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6 Z" fill="#86b8a0"/>
+        </marker>
+      </defs>
+      <!-- edges -->
+      <g stroke="#86b8a0" stroke-width="2" fill="none" marker-end="url(#ah)">
+        <path d="M430,120 L250,205"/>
+        <path d="M470,120 L650,205"/>
+        <path d="M650,300 L430,330" stroke-dasharray="5 4"/>
+        <path d="M690,300 L690,345"/>
+        <path d="M210,330 L235,455"/>
+        <path d="M330,470 L300,360"/>
+        <path d="M345,490 L555,505"/>
+      </g>
+      <text class="elabel" x="300" y="160">supabase-js · JWT</text>
+      <text class="elabel" x="556" y="158">fetch · JWT</text>
+      <text class="elabel" x="455" y="316">service-rolle (lagrer)</text>
+      <text class="elabel" x="700" y="328">Claude</text>
+      <text class="elabel" x="120" y="405">cron 07:00</text>
+      <text class="elabel" x="430" y="498">e-post</text>
+
+      <!-- browser -->
+      <g class="node" data-k="browser">
+        <rect x="320" y="30" width="260" height="90" rx="14" fill="#dcfce7" stroke="#86efac"/>
+        <text class="nlabel" x="450" y="62" text-anchor="middle">Nettleser · PWA</text>
+        <text class="nsub" x="450" y="82" text-anchor="middle">React · Vite · Tailwind · Router</text>
+        <text class="nsub" x="450" y="100" text-anchor="middle">hostet på Vercel</text>
+      </g>
+      <!-- supabase -->
+      <g class="node" data-k="supabase">
+        <rect x="70" y="205" width="320" height="135" rx="14" fill="#fff" stroke="#16a34a"/>
+        <text class="nlabel" x="86" y="230">Supabase</text>
+        <g font="12px system-ui">
+          <rect x="86" y="244" width="135" height="40" rx="8" fill="#f0fdf4" stroke="#bbf7d0"/><text class="nsub" x="153" y="268" text-anchor="middle">Postgres + RLS</text>
+          <rect x="231" y="244" width="135" height="40" rx="8" fill="#f0fdf4" stroke="#bbf7d0"/><text class="nsub" x="298" y="268" text-anchor="middle">Auth (JWT)</text>
+          <rect x="86" y="290" width="135" height="40" rx="8" fill="#f0fdf4" stroke="#bbf7d0"/><text class="nsub" x="153" y="314" text-anchor="middle">Storage (bilder)</text>
+          <rect x="231" y="290" width="135" height="40" rx="8" fill="#f0fdf4" stroke="#bbf7d0"/><text class="nsub" x="298" y="314" text-anchor="middle">pg_cron</text>
+        </g>
+      </g>
+      <!-- plant-ai -->
+      <g class="node" data-k="plantai">
+        <rect x="540" y="205" width="300" height="95" rx="14" fill="#dcfce7" stroke="#86efac"/>
+        <text class="nlabel" x="690" y="240" text-anchor="middle">Edge Function · plant-ai</text>
+        <text class="nsub" x="690" y="262" text-anchor="middle">identify · diagnose · careguide</text>
+        <text class="nsub" x="690" y="280" text-anchor="middle">chat (strøm)</text>
+      </g>
+      <!-- anthropic -->
+      <g class="node" data-k="anthropic">
+        <rect x="575" y="345" width="230" height="72" rx="14" fill="#eef2ff" stroke="#c7d2fe"/>
+        <text class="nlabel" x="690" y="376" text-anchor="middle">Anthropic API</text>
+        <text class="nsub" x="690" y="396" text-anchor="middle">Claude Sonnet · Haiku</text>
+      </g>
+      <!-- daily-summary -->
+      <g class="node" data-k="daily">
+        <rect x="110" y="455" width="235" height="72" rx="14" fill="#dcfce7" stroke="#86efac"/>
+        <text class="nlabel" x="227" y="486" text-anchor="middle">Edge Function</text>
+        <text class="nsub" x="227" y="506" text-anchor="middle">daily-summary</text>
+      </g>
+      <!-- resend -->
+      <g class="node" data-k="resend">
+        <rect x="560" y="470" width="200" height="72" rx="14" fill="#fff7ed" stroke="#fed7aa"/>
+        <text class="nlabel" x="660" y="501" text-anchor="middle">Resend</text>
+        <text class="nsub" x="660" y="521" text-anchor="middle">e-postutsending</text>
+      </g>
+    </svg>
+    <div class="detail" id="ovDetail"><b>Tips:</b> klikk en boks over.</div>
+  </section>
+
+  <!-- DATAMODELL -->
+  <section id="dm">
+    <p class="hint">8 tabeller. Alt inni den stiplede rammen er låst til din husstand av RLS.</p>
+    <div class="ring grid" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="tbl"><div class="t">households</div><div class="c">husstand + invitasjonskode</div></div>
+      <div class="tbl"><div class="t">profiles <span class="tag">↔ auth.users</span></div><div class="c">bruker → husstand</div></div>
+      <div class="tbl"><div class="t">plants</div><div class="c">stelldata · neste vanning · bilde</div></div>
+      <div class="tbl"><div class="t">plant_responsibles</div><div class="c">hvem er ansvarlig (M:N)</div></div>
+      <div class="tbl"><div class="t">care_events</div><div class="c">tidslinje: vannet / gjødslet …</div></div>
+      <div class="tbl"><div class="t">diagnoses</div><div class="c">AI-helsevurderinger</div></div>
+      <div class="tbl"><div class="t">plant_chat_messages</div><div class="c">lagret chat per plante</div></div>
+      <div class="tbl" style="background:#f0fdf4"><div class="t">species <span class="tag">delt</span></div><div class="c">arts-register (AI-beriket)</div></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2 style="margin-bottom:8px">Nøkkelen</h2>
+      <code style="font-size:12px">auth_household_id()</code> → policy: «du ser kun rader der <b>household_id</b> = din husstand».
+      Husstand-bytte/opprett går via validerte <b>SECURITY DEFINER</b>-RPC-er. Kun edge-funksjonenes <b>service-rolle</b> omgår RLS.
+    </div>
+  </section>
+
+  <!-- AI -->
+  <section id="ai">
+    <p class="hint">Én funksjon, fire handlinger. Anthropic-nøkkelen finnes <b>kun</b> i funksjonen — aldri i nettleseren.</p>
+    <div class="grid cols2">
+      <div class="card ai"><div><span class="badge sonnet">Sonnet · visjon</span></div><b>identify</b><div class="io">1 bilde → artskandidater</div><div class="save" style="color:#9ca3af">lagres ikke</div></div>
+      <div class="card ai"><div><span class="badge sonnet">Sonnet · tekst</span></div><b>careguide</b><div class="io">artsnavn → stellguide</div><div class="save" style="color:#9ca3af">lagres ikke</div></div>
+      <div class="card ai"><div><span class="badge sonnet">Sonnet · visjon</span></div><b>diagnose</b><div class="io">1–3 bilder → helsevurdering</div><div class="save" style="color:var(--brand-d)">→ diagnoses</div></div>
+      <div class="card ai"><div><span class="badge haiku">Haiku · strøm</span></div><b>chat</b><div class="io">melding + kontekst → svar</div><div class="save" style="color:var(--brand-d)">→ plant_chat_messages</div></div>
+    </div>
+    <div class="pipe" style="margin-top:14px">
+      <div class="pnode lit">Nettleser</div><div class="parrow">→</div>
+      <div class="pnode lit">JWT-sjekk</div><div class="parrow">→</div>
+      <div class="pnode lit">dagsgrense</div><div class="parrow">→</div>
+      <div class="pnode lit">Claude</div><div class="parrow">→</div>
+      <div class="pnode lit">svar / lagre</div>
+    </div>
+    <p class="hint">Modellvalg: Sonnet der bilde/kvalitet teller, Haiku til billig, rask chat.</p>
+  </section>
+
+  <!-- FLYT -->
+  <section id="fl">
+    <div class="flowbar" id="flowbar">
+      <button class="on" data-f="0">Registrer plante</button>
+      <button data-f="1">Vann nå</button>
+      <button data-f="2">Chat</button>
+    </div>
+    <div class="pipe" id="pipe"></div>
+    <div class="step"><div class="stepnum" id="stepNum">1</div><div class="stept" id="stepTxt"></div></div>
+    <div class="dots" id="dots"></div>
+    <div class="ctrl"><button class="prev" id="prev">‹ Forrige</button><button class="next" id="next">Neste ›</button></div>
+  </section>
+
+  <!-- SKALERING -->
+  <section id="sc">
+    <p class="hint">Databasen/RLS skalerer fint (mange små, isolerte husstander). Risikoen ligger her:</p>
+    <div class="grid">
+      <div class="sev r"><div class="lvl">● Høy</div><b>AI-kostnad er ubegrenset globalt</b><div class="fix">Auto-diagnose pr. registrering · identify/careguide telles ikke · ingen global kvote → fix: tell <i>tokens</i> for alle kall, global + husstand-tak, cache.</div></div>
+      <div class="sev r"><div class="lvl">● Høy</div><b>daily-summary skalerer dårlig</b><div class="fix">Laster <i>alle</i> brukere + sender serielt i én kjøring → treffer tidsgrensen. Fix: lagre e-post på profiles, batch/kø, parallelliser.</div></div>
+      <div class="sev o"><div class="lvl">● Middels</div><b>E-post</b><div class="fix">Resend-grenser + manglende DMARC → deliverability/volum.</div></div>
+      <div class="sev o"><div class="lvl">● Middels</div><b>Edge-samtidighet</b><div class="fix">Strømmende chat holder åpne tilkoblinger · cold starts.</div></div>
+      <div class="sev y"><div class="lvl">● Lav</div><b>Ingen paginering på planter + ingen observability</b><div class="fix">Henter alt pr. husstand · feil bare console.error → legg til Sentry/alerting.</div></div>
+      <div class="ok">✓ Datamodell + RLS + Storage: skalerer horisontalt på antall husstander.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // tabs
+  const tabs=document.getElementById('tabs');
+  tabs.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    [...tabs.children].forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('main section').forEach(s=>s.classList.toggle('on',s.id===b.dataset.t));
+  });
+
+  // overview node details
+  const OV={
+    browser:'<b>Nettleser (PWA)</b> — React 18 + Vite + Tailwind, lazy-lastede ruter, kun 4 runtime-pakker. Installerbar, offline-skall. Deployes automatisk via Vercel ved merge til main.',
+    supabase:'<b>Supabase</b> — Postgres med Row Level Security (husstand-isolasjon), Auth (JWT), Storage for bilder (lagret pr. husstand), og pg_cron som trigger den daglige e-posten.',
+    plantai:'<b>plant-ai</b> — edge-funksjon som er hele AI-grensesnittet. Verifiserer JWT, dispatcher på handling, og snakker med Anthropic. Nøkkelen ligger kun her.',
+    anthropic:'<b>Anthropic API</b> — Claude. Sonnet (visjon/struktur) til identify/diagnose/careguide, Haiku (rask/billig) til strømmende chat.',
+    daily:'<b>daily-summary</b> — edge-funksjon kjørt av cron 07:00. Finner planter som forfaller og varsler de ansvarlige (fallback: hele husstanden).',
+    resend:'<b>Resend</b> — e-postleverandøren den daglige oppsummeringen sendes gjennom.'
+  };
+  const ovD=document.getElementById('ovDetail');
+  document.querySelectorAll('#ov .node').forEach(n=>n.addEventListener('click',()=>{
+    document.querySelectorAll('#ov .node').forEach(x=>x.classList.toggle('sel',x===n));
+    ovD.innerHTML=OV[n.dataset.k];
+  }));
+
+  // flows
+  const PIPES={
+    0:['Skjema','Storage','plant-ai','Postgres','Detalj','plant-ai','Banner'],
+    1:['I dag','logWatering','Postgres','Toast ↩'],
+    2:['Chat','plant-ai','Claude','strøm →','Postgres']
+  };
+  const STEPS={
+    0:[
+      ['Velg opptil 3 bilder; første trigger <code>identify</code> → art + <code>careguide</code> fylles',[0,2]],
+      ['Bilder lastes opp til <code>Storage</code> under husstand-mappe',[1]],
+      ['<code>insert plants</code> (RLS sjekker husstand) + ansvarlige synkes',[3]],
+      ['Naviger til detalj med <code>justCreated</code> + bilde-URL-er',[4]],
+      ['Auto <code>diagnose</code> på bildene → lagres i <code>diagnoses</code>',[5]],
+      ['Tydelig <b>helsebanner</b> vises øverst',[6]]
+    ],
+    1:[
+      ['Trykk «Vannet» på et plantekort',[0]],
+      ['<code>logWatering</code>: oppdater plante + logg event',[1]],
+      ['<code>update plants</code> (ny forfallsdato) + <code>insert care_events</code>',[2]],
+      ['Toast med <b>Angre</b> → <code>undoWatering</code> ruller tilbake',[3]]
+    ],
+    2:[
+      ['Skriv spørsmål; sendes med plantekontekst',[0]],
+      ['<code>plant-ai/chat</code> verifiserer + lagrer melding',[1]],
+      ['Haiku genererer svar',[2]],
+      ['Svaret <b>strømmes</b> token-for-token til boblen',[3]],
+      ['Hele svaret lagres i <code>plant_chat_messages</code>',[4]]
+    ]
+  };
+  let flow=0, step=0;
+  const pipe=document.getElementById('pipe'), dots=document.getElementById('dots');
+  function renderPipe(){
+    pipe.innerHTML='';
+    const lit=STEPS[flow][step][1];
+    PIPES[flow].forEach((label,i)=>{
+      const n=document.createElement('div');n.className='pnode'+(lit.includes(i)?' lit':'');n.textContent=label;
+      pipe.appendChild(n);
+      if(i<PIPES[flow].length-1){const a=document.createElement('div');a.className='parrow';a.textContent='→';pipe.appendChild(a);}
+    });
+  }
+  function render(){
+    renderPipe();
+    document.getElementById('stepNum').textContent=step+1;
+    document.getElementById('stepTxt').innerHTML=STEPS[flow][step][0];
+    dots.innerHTML='';STEPS[flow].forEach((_,i)=>{const d=document.createElement('i');if(i===step)d.className='on';dots.appendChild(d);});
+  }
+  document.getElementById('flowbar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
+    flow=+b.dataset.f;step=0;render();
+  });
+  document.getElementById('next').onclick=()=>{step=(step+1)%STEPS[flow].length;render();};
+  document.getElementById('prev').onclick=()=>{step=(step-1+STEPS[flow].length)%STEPS[flow].length;render();};
+  render();
+</script>
+</body>
+</html>
