@@ -8,21 +8,44 @@ import type { Plant } from '../types/db'
 import { Button, Skeleton } from '../components/ui'
 import { PlantMark, Plus } from '../components/icons'
 
+const PAGE = 30
+
 export default function PlantsPage() {
   const { profile } = useAuth()
   const [plants, setPlants] = useState<Plant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('plants')
       .select('*')
       .order('created_at', { ascending: false })
+      .limit(PAGE)
     if (error) setError(error.message)
-    else setPlants(data ?? [])
+    else {
+      setPlants(data ?? [])
+      setHasMore((data?.length ?? 0) === PAGE)
+    }
     setLoading(false)
   }, [])
+
+  // Henter neste side og legger den til. Holder lista liten ved mange planter.
+  async function showMore() {
+    setLoadingMore(true)
+    const { data, error } = await supabase
+      .from('plants')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(plants.length, plants.length + PAGE - 1)
+    if (!error && data) {
+      setPlants((prev) => [...prev, ...data])
+      setHasMore(data.length === PAGE)
+    }
+    setLoadingMore(false)
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -95,6 +118,14 @@ export default function PlantsPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {hasMore && (
+        <div className="mt-5 text-center">
+          <Button variant="ghost" onClick={showMore} disabled={loadingMore}>
+            {loadingMore ? 'Henter…' : 'Vis flere'}
+          </Button>
+        </div>
       )}
     </div>
   )

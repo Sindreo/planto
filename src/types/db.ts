@@ -66,6 +66,17 @@ export type PlantChatMessage = {
   created_at: string
 }
 
+export type ErrorLog = {
+  id: string
+  user_id: string | null
+  household_id: string | null
+  source: string
+  context: string | null
+  message: string
+  detail: string | null
+  created_at: string
+}
+
 export type CareEvent = {
   id: string
   plant_id: string
@@ -98,6 +109,7 @@ export interface Database {
       care_events: { Row: CareEvent; Insert: Partial<CareEvent>; Update: Partial<CareEvent>; Relationships: [] }
       diagnoses: { Row: Diagnosis; Insert: Partial<Diagnosis>; Update: Partial<Diagnosis>; Relationships: [] }
       species: { Row: Species; Insert: Partial<Species>; Update: Partial<Species>; Relationships: [] }
+      error_logs: { Row: ErrorLog; Insert: Partial<ErrorLog>; Update: Partial<ErrorLog>; Relationships: [] }
     }
     Views: { [_ in never]: never }
     Functions: {
