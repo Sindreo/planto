@@ -25,15 +25,17 @@ export default function DiagnosePage() {
 
   // Legg til bilder (opptil 3 totalt) – erstatter ikke de forrige. På mobil kan
   // man dermed ta ett kamerabilde av gangen og samle opp til tre.
+  // Viktig: ta øyeblikksbilde av filene SYNKRONT her. Hvis vi leser FileList-en
+  // inne i setState-oppdateringen, har onChange-ens `value = ''`-nullstilling
+  // allerede tømt den, og bildet blir borte.
   function addFiles(list: FileList | null) {
     if (!list || list.length === 0) return
+    const picked = Array.from(list).map((file) => ({ file, url: URL.createObjectURL(file) }))
     setItems((prev) => {
       const room = 3 - prev.length
-      if (room <= 0) return prev
-      const incoming = Array.from(list)
-        .slice(0, room)
-        .map((file) => ({ file, url: URL.createObjectURL(file) }))
-      return [...prev, ...incoming]
+      const take = room > 0 ? picked.slice(0, room) : []
+      picked.slice(take.length).forEach((p) => URL.revokeObjectURL(p.url))
+      return take.length > 0 ? [...prev, ...take] : prev
     })
   }
 

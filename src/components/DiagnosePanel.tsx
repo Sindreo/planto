@@ -23,17 +23,17 @@ export default function DiagnosePanel({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Legg til bilder (opptil 3) – erstatter ikke de forrige. På mobil kan man ta
-  // ett kamerabilde av gangen og samle opp til tre.
+  // Legg til bilder (opptil 3) – erstatter ikke de forrige. Øyeblikksbilde av
+  // filene tas synkront her; leses de inne i setState er FileList-en allerede
+  // tømt av onChange-ens `value = ''`, og bildet forsvinner.
   function addFiles(list: FileList | null) {
     if (!list || list.length === 0) return
+    const picked = Array.from(list).map((file) => ({ file, url: URL.createObjectURL(file) }))
     setItems((prev) => {
       const room = 3 - prev.length
-      if (room <= 0) return prev
-      const incoming = Array.from(list)
-        .slice(0, room)
-        .map((file) => ({ file, url: URL.createObjectURL(file) }))
-      return [...prev, ...incoming]
+      const take = room > 0 ? picked.slice(0, room) : []
+      picked.slice(take.length).forEach((p) => URL.revokeObjectURL(p.url))
+      return take.length > 0 ? [...prev, ...take] : prev
     })
   }
 
