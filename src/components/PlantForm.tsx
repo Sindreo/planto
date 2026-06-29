@@ -209,10 +209,21 @@ export default function PlantForm({ initial }: Props) {
     }
   }, [isEdit, initial])
 
-  // Kom man hit fra «Sjekk en plante» med et bilde, finn arten automatisk fra
-  // bildet slik at art og stell er forhåndsutfylt (kan endres etterpå).
+  // Kom man hit fra «Sjekk en plante» med et bilde, forhåndsutfyll art og stell.
+  // Har helsesjekken allerede gjettet arten, gjenbruker vi den i stedet for å
+  // kjøre artsgjenkjenning på nytt på det samme bildet (sparer et AI-kall).
   useEffect(() => {
     if (isEdit || !carriedPhotoUrl) return
+    const guessed = carriedDiagnosis?.species
+    if (guessed?.name) {
+      void handleSpeciesPicked({
+        name: guessed.name,
+        latin_name: guessed.latin_name ?? '',
+        confidence: 'middels',
+        note: 'Fra helsesjekken',
+      })
+      return
+    }
     let cancelled = false
     void (async () => {
       try {
