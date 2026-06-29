@@ -143,18 +143,24 @@ export default function PlantForm({ initial }: Props) {
   /** Legg til nye bilder (opptil maxPhotos totalt). */
   function addPhotos(list: FileList | null) {
     if (!list || list.length === 0) return
+    // Øyeblikksbilde av filene synkront – ellers tømmer onChange-ens `value = ''`
+    // FileList-en før setState-oppdateringen rekker å lese den.
+    const picked: Photo[] = Array.from(list).map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }))
+    // Ny plante uten valgt art: kjør artsgjenkjenning på det første bildet, så
+    // brukeren slipper å trykke «Finn art».
+    if (!isEdit && !species.trim() && photos.length === 0) {
+      void runIdentify((picked[0] as { file: File }).file)
+    }
     setPhotos((prev) => {
       const room = maxPhotos - prev.length
-      if (room <= 0) return prev
-      const incoming: Photo[] = Array.from(list)
-        .slice(0, room)
-        .map((file) => ({ file, preview: URL.createObjectURL(file) }))
-      // Ny plante uten valgt art: kjør artsgjenkjenning på det første bildet, så
-      // brukeren slipper å trykke «Finn art».
-      if (!isEdit && !species.trim() && prev.length === 0 && incoming.length > 0) {
-        void runIdentify((incoming[0] as { file: File }).file)
-      }
-      return [...prev, ...incoming]
+      const take = room > 0 ? picked.slice(0, room) : []
+      picked
+        .slice(take.length)
+        .forEach((p) => 'preview' in p && URL.revokeObjectURL(p.preview))
+      return take.length > 0 ? [...prev, ...take] : prev
     })
   }
 
