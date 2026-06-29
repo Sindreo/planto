@@ -242,9 +242,11 @@ async function handleDiagnose(
     .join('. ')
 
   const system =
-    'Du er en ekspert på stueplanter og plantehelse. Vurder plantens tilstand ut fra bildene. ' +
+    'Du er en ekspert på stueplanter og plantehelse. Vurder plantens tilstand ut fra bildene, ' +
+    'og gjett samtidig hvilken art det er. ' +
     'Svar KUN med gyldig JSON på norsk i formatet: ' +
-    '{"likely_issues":[{"issue":"kort navn","confidence":"høy|middels|lav","evidence":"hva i bildet tyder på dette"}],' +
+    '{"species":{"name":"vanlig norsk navn","latin_name":"latinsk navn"} eller null hvis usikker,' +
+    '"likely_issues":[{"issue":"kort navn","confidence":"høy|middels|lav","evidence":"hva i bildet tyder på dette"}],' +
     '"overall_health":"god|middels|dårlig","actions":["konkret tiltak", "..."],' +
     '"watering_recommendation_days":tall_eller_null,"notes":"kort oppfølging"}. ' +
     'Vær konkret og ærlig om usikkerhet.'

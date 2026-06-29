@@ -20,6 +20,9 @@ export interface DiagnosisIssue {
 }
 
 export interface DiagnosisResult {
+  /** Artsgjetning fra diagnose-bildet (når modellen er trygg nok). Lar oss
+   *  hoppe over en separat artsgjenkjenning når man oppretter plante etterpå. */
+  species?: { name: string; latin_name: string } | null
   likely_issues: DiagnosisIssue[]
   overall_health: string
   /** Valgfritt strukturert helsenivå. Brukes om det finnes; ellers utledes
