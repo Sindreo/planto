@@ -4,10 +4,10 @@ import { diagnosePlant } from '../lib/ai'
 import { uploadPlantPhoto } from '../lib/photos'
 import type { Plant } from '../types/db'
 import { Alert, Button, Spinner } from './ui'
-import { Sparkle } from './icons'
+import { Camera, Close, Sparkle } from './icons'
 
 /**
- * «Kjør ny bildediagnose» for en plante (4.3 i SPEC). Velg 1–3 bilder, send
+ * «Kjør ny bildediagnose» for en plante (4.3 i SPEC). Legg til 1–3 bilder, send
  * til Planto (Edge Function), og resultatet lagres på planten. Selve
  * historikken vises i plantens tidslinje (onComplete laster den på nytt).
  */
@@ -19,17 +19,34 @@ export default function DiagnosePanel({
   onComplete?: () => void
 }) {
   const { session } = useAuth()
-  const [files, setFiles] = useState<File[]>([])
+  const [items, setItems] = useState<{ file: File; url: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  function onPick(list: FileList | null) {
-    if (!list) return
-    setFiles(Array.from(list).slice(0, 3))
+  // Legg til bilder (opptil 3) – erstatter ikke de forrige. På mobil kan man ta
+  // ett kamerabilde av gangen og samle opp til tre.
+  function addFiles(list: FileList | null) {
+    if (!list || list.length === 0) return
+    setItems((prev) => {
+      const room = 3 - prev.length
+      if (room <= 0) return prev
+      const incoming = Array.from(list)
+        .slice(0, room)
+        .map((file) => ({ file, url: URL.createObjectURL(file) }))
+      return [...prev, ...incoming]
+    })
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => {
+      const it = prev[index]
+      if (it) URL.revokeObjectURL(it.url)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   async function run() {
-    if (files.length === 0) {
+    if (items.length === 0) {
       setError('Velg minst ett bilde av planten.')
       return
     }
@@ -37,7 +54,7 @@ export default function DiagnosePanel({
     setLoading(true)
     try {
       const imageUrls = await Promise.all(
-        files.map((f) => uploadPlantPhoto(plant.household_id, f)),
+        items.map((it) => uploadPlantPhoto(plant.household_id, it.file)),
       )
       await diagnosePlant(
         {
@@ -49,7 +66,7 @@ export default function DiagnosePanel({
         },
         session?.access_token,
       )
-      setFiles([])
+      setItems([])
       onComplete?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -70,22 +87,42 @@ export default function DiagnosePanel({
           <Spinner label="Planto undersøker planten…" />
         </div>
       ) : (
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <label className="inline-block cursor-pointer rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            Velg bilder
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              multiple
-              className="hidden"
-              onChange={(e) => onPick(e.target.files)}
-            />
-          </label>
-          {files.length > 0 && (
-            <span className="text-sm text-gray-600">{files.length} bilde(r) valgt</span>
-          )}
-          <Button type="button" onClick={run} disabled={files.length === 0}>
+        <div className="mt-3 space-y-3">
+          <div className="flex flex-wrap gap-3">
+            {items.map((it, i) => (
+              <div key={i} className="relative h-20 w-20 overflow-hidden rounded-xl bg-brand-100">
+                <img src={it.url} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removeItem(i)}
+                  aria-label="Fjern bilde"
+                  className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/50 text-white hover:bg-black/70"
+                >
+                  <Close className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            {items.length < 3 && (
+              <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-brand-200 bg-white/60 text-center text-brand-700 hover:bg-gray-50">
+                <Camera className="h-5 w-5" />
+                <span className="text-[11px] font-medium">
+                  {items.length === 0 ? 'Velg bilde' : 'Legg til'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    addFiles(e.target.files)
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+            )}
+          </div>
+          <Button type="button" onClick={run} disabled={items.length === 0}>
             <Sparkle className="h-4 w-4" />
             Kjør diagnose
           </Button>
