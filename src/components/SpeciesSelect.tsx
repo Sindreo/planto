@@ -11,10 +11,13 @@ export default function SpeciesSelect({
   value,
   onChange,
   onSelectSpecies,
+  latin,
 }: {
   value: string
   onChange: (text: string) => void
   onSelectSpecies: (species: Species) => void
+  /** Latinsk navn for koblet art – vises som fadet undertekst for gjenkjennelse. */
+  latin?: string | null
 }) {
   const [results, setResults] = useState<Species[]>([])
   const [open, setOpen] = useState(false)
@@ -60,6 +63,10 @@ export default function SpeciesSelect({
           className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200 sm:text-sm"
         />
       </label>
+
+      {latin && latin.trim() && latin.trim().toLowerCase() !== value.trim().toLowerCase() && (
+        <p className="mt-1 px-1 text-xs italic text-gray-500">{latin}</p>
+      )}
 
       {open && results.length > 0 && (
         <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-brand-100 bg-white shadow-lg">
