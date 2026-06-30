@@ -191,7 +191,10 @@ async function handleIdentify(body: Body): Promise<Response> {
   const system =
     'Du er en ekspert på stueplanter. Identifiser planten på bildet. ' +
     'Svar KUN med gyldig JSON på norsk i formatet: ' +
-    '{"candidates":[{"name":"vanlig norsk navn","latin_name":"latinsk navn","confidence":"høy|middels|lav","note":"kort begrunnelse"}]}. ' +
+    '{"candidates":[{"name":"vanlig hverdagsnavn","latin_name":"latinsk navn","confidence":"høy|middels|lav","note":"kort begrunnelse"}]}. ' +
+    '"name" skal være navnet folk flest faktisk bruker til daglig og ville søkt etter – ' +
+    'foretrekk det innarbeidede populærnavnet (ofte slektsnavnet, f.eks. «Monstera», «Pilea», «Calathea») ' +
+    'fremfor en formell norsk oversettelse (som «Vindusblad») når det er det vanligste. ' +
     'Maks 4 kandidater, mest sannsynlig først. Vær ærlig om usikkerhet – ikke påstå én art med falsk selvtillit.'
   const text = await callClaude({
     system,
@@ -245,7 +248,7 @@ async function handleDiagnose(
     'Du er en ekspert på stueplanter og plantehelse. Vurder plantens tilstand ut fra bildene, ' +
     'og gjett samtidig hvilken art det er. ' +
     'Svar KUN med gyldig JSON på norsk i formatet: ' +
-    '{"species":{"name":"vanlig norsk navn","latin_name":"latinsk navn"} eller null hvis usikker,' +
+    '{"species":{"name":"vanlig hverdagsnavn (det folk flest bruker, ofte slektsnavnet som «Monstera» fremfor «Vindusblad»)","latin_name":"latinsk navn"} eller null hvis usikker,' +
     '"likely_issues":[{"issue":"kort navn","confidence":"høy|middels|lav","evidence":"hva i bildet tyder på dette"}],' +
     '"overall_health":"god|middels|dårlig","actions":["konkret tiltak", "..."],' +
     '"watering_recommendation_days":tall_eller_null,"notes":"kort oppfølging"}. ' +
