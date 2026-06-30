@@ -48,6 +48,8 @@ export default function PlantForm({ initial }: Props) {
   const [nickname, setNickname] = useState(initial?.nickname ?? '')
   const [species, setSpecies] = useState(initial?.species ?? '')
   const [speciesId, setSpeciesId] = useState<string | null>(initial?.species_id ?? null)
+  // Latinsk navn for koblet art – vises som fadet undertekst under «Art / type».
+  const [speciesLatin, setSpeciesLatin] = useState<string | null>(null)
   const [location, setLocation] = useState(initial?.location ?? '')
   const [lightNeeds, setLightNeeds] = useState(initial?.light_needs ?? '')
   const [waterDays, setWaterDays] = useState(
@@ -113,6 +115,7 @@ export default function PlantForm({ initial }: Props) {
       setAutoFilling(true)
       // Registrer arten med en gang (uten stell), så vi har en id.
       if (candidate.latin_name?.trim()) {
+        setSpeciesLatin(candidate.latin_name.trim())
         const id = await upsertSpecies({
           latinName: candidate.latin_name,
           commonName: name,
@@ -136,6 +139,7 @@ export default function PlantForm({ initial }: Props) {
   function handleSpeciesSelected(s: Species) {
     setSpecies(s.common_name ?? s.latin_name)
     setSpeciesId(s.id)
+    setSpeciesLatin(s.latin_name ?? null)
     if (!nickname.trim()) setNickname(s.common_name ?? s.latin_name)
     applyGuide(speciesToGuide(s))
   }
@@ -214,6 +218,24 @@ export default function PlantForm({ initial }: Props) {
       cancelled = true
     }
   }, [isEdit, initial])
+
+  // Ved redigering: hent latinsk navn for koblet art, så det vises som undertekst.
+  useEffect(() => {
+    const sid = initial?.species_id
+    if (!sid) return
+    let cancelled = false
+    void supabase
+      .from('species')
+      .select('latin_name')
+      .eq('id', sid)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setSpeciesLatin((data as { latin_name: string } | null)?.latin_name ?? null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [initial?.species_id])
 
   // Kom man hit fra «Sjekk en plante» med et bilde, forhåndsutfyll art og stell.
   // Har helsesjekken allerede gjettet arten, gjenbruker vi den i stedet for å
@@ -399,10 +421,12 @@ export default function PlantForm({ initial }: Props) {
 
       <SpeciesSelect
         value={species}
+        latin={speciesLatin}
         onChange={(text) => {
           setSpecies(text)
           // Fri redigering bryter koblingen til registeret.
           setSpeciesId(null)
+          setSpeciesLatin(null)
         }}
         onSelectSpecies={handleSpeciesSelected}
       />
