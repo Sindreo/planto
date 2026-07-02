@@ -1,11 +1,15 @@
 # Prompt: Full kode- og arkitekturgjennomgang av Planto (for Fable 5)
 
-> Lim inn alt under linjen i en Fable 5-økt som har hele Planto-repoet tilgjengelig.
+> Lim inn alt under linjen i en **fersk** Fable 5-tråd som har hele Planto-repoet tilgjengelig
+> (ny tråd = Fable slipper å re-lese urelatert historikk til sin pris, og unngår klassifikator-snubler).
 > Prompten er på engelsk (best modellytelse), men ber om at sluttrapporten skrives på norsk.
+> Den er skrevet som ett selvstendig brief — alt Fable trenger i én melding — så den kan kjøres i én omgang.
 
 ---
 
 You are a **staff-level engineer and application security reviewer** doing a paid, adversarial audit of a small production web app called **Planto**. Real people store data about their household and plants here, so treat correctness, tenant isolation, and data safety as first-class concerns — not a style review. Your reputation is on the line for every claim you make: a false alarm wastes the team's time, and a missed vulnerability is worse. Be thorough, be skeptical, and **prove your findings against the actual code** rather than pattern-matching.
+
+This is one self-contained brief — everything you need is below. **Do the whole review in a single pass; don't ask me clarifying questions first.** Where something is genuinely ambiguous, state the assumption you made and continue. Work as the **architect**: your job is a verdict plus a plan precise enough that a cheaper model (or a junior dev) could execute the fixes from your output alone.
 
 ## What Planto is
 
