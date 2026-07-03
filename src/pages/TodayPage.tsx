@@ -59,13 +59,17 @@ export default function TodayPage() {
         action: {
           label: 'Angre',
           onClick: async () => {
-            await undoWatering({
-              plantId: plant.id,
-              eventId,
-              prevLastWateredAt: prev.last,
-              prevNextWaterDue: prev.next,
-            })
-            await load()
+            try {
+              await undoWatering({
+                plantId: plant.id,
+                eventId,
+                prevLastWateredAt: prev.last,
+                prevNextWaterDue: prev.next,
+              })
+              await load()
+            } catch {
+              toast({ message: 'Klarte ikke å angre', tone: 'error' })
+            }
           },
         },
       })

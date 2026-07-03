@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -16,6 +16,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const toast = useToast()
   const [household, setHousehold] = useState<Household | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
   const [copied, setCopied] = useState(false)
   const [switching, setSwitching] = useState(false)
   const [switchCode, setSwitchCode] = useState('')
@@ -31,6 +32,24 @@ export default function Layout({ children }: { children: ReactNode }) {
       .maybeSingle()
       .then(({ data }) => setHousehold(data))
   }, [profile?.household_id])
+
+  // Lukk profilmenyen ved klikk utenfor eller Escape (samme mønster som
+  // SpeciesSelect).
+  useEffect(() => {
+    if (!menuOpen) return
+    function onDoc(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
 
   async function copyCode() {
     if (!household) return
@@ -84,11 +103,13 @@ export default function Layout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen((o) => !o)}
               className="grid h-9 w-9 place-items-center rounded-full bg-brand-100 text-sm font-bold text-brand-800"
               aria-label="Meny"
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
               type="button"
             >
               {(profile?.display_name ?? '?').charAt(0).toUpperCase()}

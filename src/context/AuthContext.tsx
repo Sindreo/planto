@@ -62,11 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    // Lytt på innlogging/utlogging.
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    // Lytt på innlogging/utlogging. Callbacken må være synkron: supabase-js
+    // holder navigator.locks under den, og et await mot Supabase her kan gi
+    // deadlock. Utsett derfor profil-lastingen med setTimeout(0).
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
       if (newSession?.user) {
-        await loadProfile(newSession.user.id)
+        const uid = newSession.user.id
+        setTimeout(() => {
+          void loadProfile(uid)
+        }, 0)
       } else {
         setProfile(null)
       }
@@ -78,6 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut()
     setProfile(null)
+    // Tøm SW-datacachene så en annen bruker på samme enhet ikke offline kan se
+    // forrige brukers data (cachene er ikke bruker-skilt). Best-effort.
+    try {
+      if ('caches' in window) {
+        await Promise.all([caches.delete('planto-data'), caches.delete('planto-images')])
+      }
+    } catch {
+      /* ignorer */
+    }
   }
 
   return (

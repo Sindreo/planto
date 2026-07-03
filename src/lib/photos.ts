@@ -49,3 +49,10 @@ export async function uploadPlantPhoto(
   const { data } = supabase.storage.from(BUCKET).getPublicUrl(path)
   return data.publicUrl
 }
+
+/** Utleder Storage-stien fra en offentlig plant-photos-URL. */
+export function storagePathFromPublicUrl(url: string): string | null {
+  const marker = '/object/public/plant-photos/'
+  const i = url.indexOf(marker)
+  return i === -1 ? null : decodeURIComponent(url.slice(i + marker.length))
+}

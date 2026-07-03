@@ -357,9 +357,11 @@ async function handleChat(
   if (pErr || !plant) return jsonResponse({ error: 'Ingen tilgang til planten' }, 403)
 
   // Lagre brukerens melding, og hent samtalehistorikken (siste 20).
-  await admin
+  const { data: userRow } = await admin
     .from('plant_chat_messages')
     .insert({ plant_id: plantId, user_id: userId, role: 'user', content: message })
+    .select('id')
+    .single()
   const { data: rows } = await admin
     .from('plant_chat_messages')
     .select('role, content')
@@ -398,6 +400,9 @@ async function handleChat(
   )
   if (!upstream.ok || !upstream.body) {
     const detail = await upstream.text().catch(() => '')
+    // Rydd bort den lagrede brukermeldingen så en retry ikke dobbeltlagrer den
+    // (og historikken ikke etterlates med en ubesvart melding). Best-effort.
+    if (userRow?.id) await admin.from('plant_chat_messages').delete().eq('id', userRow.id)
     return jsonResponse({ error: `Claude-feil (${upstream.status}): ${detail.slice(0, 200)}` }, 502)
   }
 

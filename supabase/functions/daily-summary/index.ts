@@ -92,20 +92,28 @@ Deno.serve(async (req) => {
 
     // Send én e-post per mottaker med kun deres egne planter. Hver utsending er
     // isolert: feiler én (f.eks. Resend-hikke), fortsetter resten, og feilen
-    // logges i stedet for å velte hele kjøringen.
-    const emailById = await loadEmails(admin)
+    // logges i stedet for å velte hele kjøringen. Vi sender i bolker à 5 parallelt.
+    const emailById = await loadEmails(admin, [...plantsByUser.keys()])
+    const recipients = [...plantsByUser.entries()].filter(([userId]) => emailById.has(userId))
     let sent = 0
     let failed = 0
-    for (const [userId, userPlants] of plantsByUser) {
-      const email = emailById.get(userId)
-      if (!email) continue
-      const html = buildEmailHtml(userPlants, today)
-      try {
-        await sendEmail([email], `Planto – ${userPlants.length} plante(r) trenger vann`, html)
-        sent += 1
-      } catch (err) {
-        failed += 1
-        await logError(admin, 'daily-summary', `Utsending feilet for ${userId}`, err)
+    for (let i = 0; i < recipients.length; i += 5) {
+      const chunk = recipients.slice(i, i + 5)
+      const results = await Promise.allSettled(
+        chunk.map(([userId, userPlants]) => {
+          const email = emailById.get(userId)!
+          const html = buildEmailHtml(userPlants, today)
+          return sendEmail([email], `Planto – ${userPlants.length} plante(r) trenger vann`, html)
+        }),
+      )
+      for (let j = 0; j < results.length; j++) {
+        const r = results[j]
+        if (r.status === 'fulfilled') {
+          sent += 1
+        } else {
+          failed += 1
+          await logError(admin, 'daily-summary', `Utsending feilet for ${chunk[j][0]}`, r.reason)
+        }
       }
     }
 
@@ -162,16 +170,22 @@ function appToday(): string {
 
 async function loadEmails(
   admin: ReturnType<typeof createClient>,
+  userIds: string[],
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>()
-  let page = 1
-  // listUsers er paginert; for to brukere holder én side, men vi looper for sikkerhets skyld.
-  for (;;) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 })
-    if (error) throw error
-    for (const u of data.users) if (u.email) map.set(u.id, u.email)
-    if (data.users.length < 1000) break
-    page++
+  // Slå opp e-post kun for de faktiske mottakerne (ikke hele auth-brukerlista),
+  // i bolker à 10 parallelt.
+  for (let i = 0; i < userIds.length; i += 10) {
+    const chunk = userIds.slice(i, i + 10)
+    const results = await Promise.allSettled(
+      chunk.map((id) => admin.auth.admin.getUserById(id)),
+    )
+    results.forEach((r, j) => {
+      if (r.status === 'fulfilled') {
+        const email = r.value.data.user?.email
+        if (email) map.set(chunk[j], email)
+      }
+    })
   }
   return map
 }

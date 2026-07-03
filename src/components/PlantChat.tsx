@@ -68,12 +68,14 @@ export default function PlantChat({
   const listRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
+    // Hent de nyeste 50 (descending) og snu til stigende for visning.
     const { data } = await supabase
       .from('plant_chat_messages')
       .select('*')
       .eq('plant_id', plant.id)
-      .order('created_at', { ascending: true })
-    setMessages((data ?? []) as PlantChatMessage[])
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setMessages(((data ?? []) as PlantChatMessage[]).reverse())
   }, [plant.id])
 
   useEffect(() => {

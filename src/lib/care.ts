@@ -53,7 +53,8 @@ export async function undoWatering(params: {
   prevLastWateredAt: string | null
   prevNextWaterDue: string | null
 }): Promise<void> {
-  await supabase.from('care_events').delete().eq('id', params.eventId)
+  const { error: delErr } = await supabase.from('care_events').delete().eq('id', params.eventId)
+  if (delErr) throw delErr
   const { error } = await supabase
     .from('plants')
     .update({

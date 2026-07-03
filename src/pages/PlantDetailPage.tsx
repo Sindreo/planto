@@ -7,6 +7,7 @@ import { diagnosePlant } from '../lib/ai'
 import { formatDateTime, relativeDay, waterStatus, waterStatusLabel } from '../lib/format'
 import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
 import { translateError } from '../lib/errors'
+import { storagePathFromPublicUrl } from '../lib/photos'
 import { useToast } from '../components/Toast'
 import type { CareEvent, Diagnosis, Plant, Profile } from '../types/db'
 import type { DiagnosisResult } from '../types/ai'
@@ -55,7 +56,8 @@ export default function PlantDetailPage() {
           .from('diagnoses')
           .select('*')
           .eq('plant_id', id)
-          .order('created_at', { ascending: false }),
+          .order('created_at', { ascending: false })
+          .limit(20),
         supabase.from('profiles').select('id, display_name'),
         supabase.from('plant_responsibles').select('user_id').eq('plant_id', id),
       ])
@@ -163,13 +165,17 @@ export default function PlantDetailPage() {
         action: {
           label: 'Angre',
           onClick: async () => {
-            await undoWatering({
-              plantId: plant.id,
-              eventId,
-              prevLastWateredAt: prev.last,
-              prevNextWaterDue: prev.next,
-            })
-            await load()
+            try {
+              await undoWatering({
+                plantId: plant.id,
+                eventId,
+                prevLastWateredAt: prev.last,
+                prevNextWaterDue: prev.next,
+              })
+              await load()
+            } catch {
+              toast({ message: 'Klarte ikke å angre', tone: 'error' })
+            }
           },
         },
       })
@@ -183,6 +189,24 @@ export default function PlantDetailPage() {
   async function handleDelete() {
     if (!plant) return
     setConfirmDelete(false)
+
+    // Rydd opp Storage-objektene (plantens bilde + alle diagnosebilder) før
+    // raden slettes, ellers lekker de for alltid. Best-effort: en feil her skal
+    // ikke blokkere selve slettingen.
+    const paths = [
+      plant.photo_url,
+      ...diagnoses.flatMap((d) => d.image_urls ?? []),
+    ]
+      .map((url) => (url ? storagePathFromPublicUrl(url) : null))
+      .filter((p): p is string => p !== null)
+    if (paths.length > 0) {
+      try {
+        await supabase.storage.from('plant-photos').remove(paths)
+      } catch {
+        // ignorer – RLS begrenser uansett til egen husstands mappe
+      }
+    }
+
     const { error } = await supabase.from('plants').delete().eq('id', plant.id)
     if (error) {
       setError(translateError(error))
