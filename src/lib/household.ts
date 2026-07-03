@@ -28,17 +28,14 @@ export async function getPlantResponsibles(plantId: string): Promise<string[]> {
 }
 
 /**
- * Synkroniserer de ansvarlige for en plante til nøyaktig settet userIds:
- * fjerner dem som ikke lenger står oppført og legger til nye.
+ * Synkroniserer de ansvarlige for en plante til nøyaktig settet userIds.
+ * Kjøres atomisk i én RPC (delete+insert i samme transaksjon), så planten
+ * aldri kan bli stående uten ansvarlige om noe feiler underveis.
  */
 export async function setPlantResponsibles(plantId: string, userIds: string[]): Promise<void> {
-  const { error: delErr } = await supabase
-    .from('plant_responsibles')
-    .delete()
-    .eq('plant_id', plantId)
-  if (delErr) throw delErr
-  if (userIds.length === 0) return
-  const rows = userIds.map((user_id) => ({ plant_id: plantId, user_id }))
-  const { error: insErr } = await supabase.from('plant_responsibles').insert(rows)
-  if (insErr) throw insErr
+  const { error } = await supabase.rpc('set_plant_responsibles', {
+    p_plant_id: plantId,
+    p_user_ids: userIds,
+  })
+  if (error) throw error
 }

@@ -128,6 +128,10 @@ export interface Database {
         }
         Returns: string
       }
+      set_plant_responsibles: {
+        Args: { p_plant_id: string; p_user_ids: string[] }
+        Returns: undefined
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
