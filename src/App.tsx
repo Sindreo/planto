@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { isSupabaseConfigured } from './lib/supabase'
 import { useAuth } from './context/AuthContext'
-import { Spinner } from './components/ui'
+import { Alert, Button, Spinner } from './components/ui'
 import Layout from './components/Layout'
 import MissingConfigPage from './pages/MissingConfigPage'
 import LoginPage from './pages/LoginPage'
@@ -16,7 +16,7 @@ const PlantFormPage = lazy(() => import('./pages/PlantFormPage'))
 const PlantDetailPage = lazy(() => import('./pages/PlantDetailPage'))
 
 export default function App() {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, loading, profileError, refreshProfile } = useAuth()
 
   // 1) Frontend mangler Supabase-nøkler → vis oppsettsguide.
   if (!isSupabaseConfigured) return <MissingConfigPage />
@@ -33,10 +33,24 @@ export default function App() {
   // 3) Ikke innlogget.
   if (!session) return <LoginPage />
 
-  // 4) Innlogget, men ikke knyttet til en husstand ennå.
+  // 4) Innlogget, men profilhentingen feilet (f.eks. nettverksfeil). Vis en
+  // feilskjerm i stedet for å feiltolke en eksisterende bruker som ny (som ville
+  // sendt dem til onboarding).
+  if (profileError && !profile) {
+    return (
+      <div className="grid min-h-full place-items-center p-4">
+        <div className="w-full max-w-sm space-y-4 text-center">
+          <Alert tone="error">Klarte ikke å hente profilen din: {profileError}</Alert>
+          <Button onClick={() => refreshProfile()}>Prøv igjen</Button>
+        </div>
+      </div>
+    )
+  }
+
+  // 5) Innlogget, men ikke knyttet til en husstand ennå.
   if (!profile?.household_id) return <OnboardingPage />
 
-  // 5) Klar – vis appen.
+  // 6) Klar – vis appen.
   return (
     <Layout>
       <Suspense

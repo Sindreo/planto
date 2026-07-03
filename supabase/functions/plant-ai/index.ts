@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
 
     if (body.action === 'identify') return await handleIdentify(body)
     if (body.action === 'careguide') return await handleCareGuide(body)
-    if (body.action === 'diagnose') return await handleDiagnose(body, admin, user.id)
+    if (body.action === 'diagnose') return await handleDiagnose(body, admin, userClient, user.id)
     if (body.action === 'chat') return await handleChat(body, admin, userClient, user.id)
     return jsonResponse({ error: 'Ukjent handling' }, 400)
   } catch (err) {
@@ -225,10 +225,36 @@ async function handleCareGuide(body: Body): Promise<Response> {
 async function handleDiagnose(
   body: Body,
   admin: ReturnType<typeof createClient>,
+  userClient: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<Response> {
   const urls = (body.image_urls ?? []).slice(0, 3)
   if (urls.length === 0) return jsonResponse({ error: 'Mangler bilder' }, 400)
+
+  // Er en plante oppgitt, må brukeren ha tilgang til den (RLS via brukerklienten).
+  // Ellers kan en innlogget bruker plante diagnoser i en annen husstands tidslinje.
+  if (body.plant_id) {
+    const { data: plant, error: pErr } = await userClient
+      .from('plants')
+      .select('id')
+      .eq('id', body.plant_id)
+      .maybeSingle()
+    if (pErr || !plant) return jsonResponse({ error: 'Ingen tilgang til planten' }, 403)
+  }
+
+  // Valider at bilde-URL-ene ligger i brukerens egen husstandsmappe i Storage,
+  // så en angriper ikke kan lagre vilkårlige URL-er i diagnoses.
+  const { data: prof } = await admin
+    .from('profiles')
+    .select('household_id')
+    .eq('id', userId)
+    .maybeSingle()
+  const householdId = (prof as { household_id: string | null } | null)?.household_id
+  if (!householdId) return jsonResponse({ error: 'Mangler husstand' }, 400)
+  const prefix = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/plant-photos/${householdId}/`
+  if (!urls.every((url) => url.startsWith(prefix))) {
+    return jsonResponse({ error: 'Ugyldig bilde-URL' }, 400)
+  }
 
   const images: ImageBlock[] = urls.map((url) => ({
     type: 'image',
@@ -327,8 +353,9 @@ async function handleChat(
     .from('plant_chat_messages')
     .select('role, content')
     .eq('plant_id', plantId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(20)
+  const history = ((rows ?? []) as ChatMsg[]).reverse()
 
   const system =
     'Du er Planto – en vennlig, kunnskapsrik hjelper for stueplanter. Svar kort, ' +
@@ -338,7 +365,7 @@ async function handleChat(
     'Om planten brukeren spør om:\n' +
     buildPlantContext(body.context ?? {})
 
-  const messages = normalizeMessages((rows ?? []) as ChatMsg[])
+  const messages = normalizeMessages(history)
 
   // Strøm svaret token for token fra Claude videre til klienten, og samle opp
   // hele teksten så vi kan lagre den når strømmen er ferdig.

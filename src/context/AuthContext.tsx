@@ -7,6 +7,7 @@ import {
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { translateError } from '../lib/errors'
 import type { Profile } from '../types/db'
 
 interface AuthContextValue {
@@ -14,6 +15,8 @@ interface AuthContextValue {
   profile: Profile | null
   /** True mens vi laster session/profil ved oppstart. */
   loading: boolean
+  /** Satt hvis profilhentingen feilet (f.eks. nettverksfeil), ellers null. */
+  profileError: string | null
   refreshProfile: () => Promise<void>
   signOut: () => Promise<void>
 }
@@ -24,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [profileError, setProfileError] = useState<string | null>(null)
 
   async function loadProfile(userId: string) {
     const { data, error } = await supabase
@@ -33,9 +37,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle()
     if (error) {
       console.error('Klarte ikke å hente profil:', error.message)
+      setProfileError(translateError(error))
       setProfile(null)
       return
     }
+    setProfileError(null)
     setProfile(data)
   }
 
@@ -76,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, loading, refreshProfile, signOut }}
+      value={{ session, profile, loading, profileError, refreshProfile, signOut }}
     >
       {children}
     </AuthContext.Provider>

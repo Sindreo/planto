@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { logWatering, undoWatering } from '../lib/care'
 import { relativeDay, todayISO, waterStatus } from '../lib/format'
 import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
+import { translateError } from '../lib/errors'
 import type { Plant } from '../types/db'
 import { Skeleton } from '../components/ui'
 import { useToast } from '../components/Toast'
@@ -20,14 +21,19 @@ export default function TodayPage() {
   const toast = useToast()
   const [plants, setPlants] = useState<Plant[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('plants')
       .select('*')
       .order('next_water_due', { ascending: true, nullsFirst: false })
-    setPlants(data ?? [])
+    if (error) setError(translateError(error))
+    else {
+      setError(null)
+      setPlants(data ?? [])
+    }
     setLoading(false)
   }, [])
 
@@ -88,6 +94,8 @@ export default function TodayPage() {
 
       {loading ? (
         <LoadingState />
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
       ) : plants.length === 0 ? (
         <EmptyState />
       ) : (
@@ -366,6 +374,21 @@ function AllClear() {
         <p className="font-semibold text-gray-900">Alt er ajour</p>
         <p className="text-sm text-gray-500">Ingen planter trenger vann akkurat nå.</p>
       </div>
+    </div>
+  )
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+      <p className="text-sm text-red-700">Klarte ikke å hente plantene: {message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-3 inline-block rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+      >
+        Prøv igjen
+      </button>
     </div>
   )
 }

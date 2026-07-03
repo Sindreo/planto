@@ -59,7 +59,8 @@ export default function PlantDetailPage() {
         supabase.from('profiles').select('id, display_name'),
         supabase.from('plant_responsibles').select('user_id').eq('plant_id', id),
       ])
-    if (pe) setError(pe.message)
+    if (pe) setError(translateError(pe))
+    else setError(null)
     setPlant(p)
     setEvents(ev ?? [])
     setDiagnoses(dg ?? [])
@@ -211,7 +212,20 @@ export default function PlantDetailPage() {
           <ArrowLeft className="h-4 w-4" />
           Tilbake
         </Link>
-        <p className="mt-4 text-gray-600">Fant ikke planten.</p>
+        {error ? (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-700">
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={() => load()}
+              className="mt-3 inline-block rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+            >
+              Prøv igjen
+            </button>
+          </div>
+        ) : (
+          <p className="mt-4 text-gray-600">Fant ikke planten.</p>
+        )}
       </div>
     )
   }
