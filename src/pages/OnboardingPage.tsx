@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { translateError as baseTranslateError } from '../lib/errors'
 import { Alert, Button, Card, Input } from '../components/ui'
 
 type Mode = 'create' | 'join'
@@ -117,9 +118,14 @@ export default function OnboardingPage() {
   )
 }
 
+// Onboarding-spesifikke meldinger på toppen av den felles oversetteren. RPC-ene
+// fra 0001 kaster på norsk ('Ugyldig invitasjonskode' / 'Bruker er allerede med
+// i en husstand'), så mønstrene matcher både engelsk og disse tekstene.
 function translateError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
-  if (/invalid invite|not found|no rows/i.test(msg)) return 'Fant ingen husstand med denne koden. Sjekk at den er riktig.'
-  if (/already/i.test(msg)) return 'Du er allerede med i en husstand.'
-  return msg
+  if (/invalid invite|not found|no rows|ugyldig invitasjonskode/i.test(msg))
+    return 'Fant ingen husstand med denne koden. Sjekk at den er riktig.'
+  if (/already|allerede med i en husstand/i.test(msg))
+    return 'Du er allerede med i en husstand.'
+  return baseTranslateError(err)
 }
