@@ -128,8 +128,9 @@ export default function PlantDetailPage() {
           session.access_token,
         )
         await load()
-      } catch {
-        // Stille – brukeren kan kjøre «Sjekk planten» manuelt.
+      } catch (err) {
+        // Brukeren kan kjøre «Sjekk planten» manuelt, men gi beskjed ved f.eks. 429.
+        toast({ message: translateError(err), tone: 'error' })
       } finally {
         setAutoDiagnosing(false)
       }

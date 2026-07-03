@@ -113,23 +113,37 @@ export default function PlantForm({ initial }: Props) {
     if (!nickname.trim()) setNickname(name)
     try {
       setAutoFilling(true)
-      // Registrer arten med en gang (uten stell), så vi har en id.
-      if (candidate.latin_name?.trim()) {
-        setSpeciesLatin(candidate.latin_name.trim())
-        const id = await upsertSpecies({
-          latinName: candidate.latin_name,
-          commonName: name,
-        })
+      const latin = candidate.latin_name?.trim()
+      if (latin) {
+        setSpeciesLatin(latin)
+        // Registrer arten med en gang (uten stell), så vi har en id.
+        const id = await upsertSpecies({ latinName: candidate.latin_name, commonName: name })
         setSpeciesId(id)
-      }
-      const guide = await fillCareGuide(name, session?.access_token)
-      applyGuide(guide)
-      // Berik registeret med stellguiden, så neste gang slipper man AI-kallet.
-      if (candidate.latin_name?.trim()) {
+        // Finnes arten allerede med stellinfo i registeret, bruk den og spar
+        // AI-kallet – det var hele poenget med det delte registeret.
+        const { data: row } = await supabase
+          .from('species')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle()
+        const s = row as Species | null
+        if (s && (s.water_interval_days != null || s.light_needs != null)) {
+          applyGuide(speciesToGuide(s))
+          return
+        }
+        // Ingen stellinfo ennå: hent fra AI og berik registeret for neste gang.
+        const guide = await fillCareGuide(name, session?.access_token)
+        applyGuide(guide)
         await upsertSpecies({ latinName: candidate.latin_name, commonName: name, guide })
+      } else {
+        // Ingen latinsk navn → ingen registeroppslag, bare AI.
+        const guide = await fillCareGuide(name, session?.access_token)
+        applyGuide(guide)
       }
-    } catch {
-      // Stille – brukeren kan trykke «Fyll ut med AI» manuelt ved behov.
+    } catch (err) {
+      // Brukeren kan fylle ut stellguiden manuelt, men gi beskjed om at det
+      // f.eks. var en dagsgrense (429) som stoppet AI-kallet.
+      toast({ message: translateError(err), tone: 'error' })
     } finally {
       setAutoFilling(false)
     }
@@ -186,8 +200,9 @@ export default function PlantForm({ initial }: Props) {
       const res = await identifySpecies(image, session?.access_token)
       const top = res.candidates?.[0]
       if (top) await handleSpeciesPicked(top)
-    } catch {
-      // Stille – brukeren kan trykke «Finn art» manuelt.
+    } catch (err) {
+      // Brukeren kan trykke «Finn art» manuelt, men gi beskjed ved f.eks. 429.
+      toast({ message: translateError(err), tone: 'error' })
     } finally {
       setIdentifying(false)
       identifyingRef.current = false

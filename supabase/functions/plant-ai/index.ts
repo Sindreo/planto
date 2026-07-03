@@ -137,21 +137,47 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey)
 
-    // Enkel kostnadssikring: maks antall AI-kall per bruker per døgn.
+    const body = (await req.json()) as Body
+
+    // Kostnadssikring: tell faktiske AI-kall siste døgn i ai_calls (alle fire
+    // handlinger logges der – tidligere ble kun diagnose talt). Chat har egen,
+    // høyere grense enn de dyre vision-kallene.
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
-    const { count } = await admin
-      .from('diagnoses')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', since)
-    if ((count ?? 0) >= MAX_AI_PER_DAY) {
-      return jsonResponse(
-        { error: `Dagsgrensen for AI-kall (${MAX_AI_PER_DAY}) er nådd. Prøv igjen i morgen.` },
-        429,
-      )
+    if (body.action === 'chat') {
+      const { count } = await admin
+        .from('ai_calls')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('action', 'chat')
+        .gte('created_at', since)
+      if ((count ?? 0) >= MAX_CHAT_PER_DAY) {
+        return jsonResponse(
+          { error: `Dagsgrensen for chat (${MAX_CHAT_PER_DAY}) er nådd. Prøv igjen i morgen.` },
+          429,
+        )
+      }
+    } else {
+      const { count } = await admin
+        .from('ai_calls')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .in('action', ['identify', 'diagnose', 'careguide'])
+        .gte('created_at', since)
+      if ((count ?? 0) >= MAX_AI_PER_DAY) {
+        return jsonResponse(
+          { error: `Dagsgrensen for AI-kall (${MAX_AI_PER_DAY}) er nådd. Prøv igjen i morgen.` },
+          429,
+        )
+      }
     }
 
-    const body = (await req.json()) as Body
+    // Tell forsøket før Claude-kallet, så retry-hamring ikke omgår grensen.
+    // Best-effort: en insert-feil skal ikke velte selve AI-kallet.
+    try {
+      await admin.from('ai_calls').insert({ user_id: user.id, action: body.action })
+    } catch {
+      // ignorer – logging skal aldri stoppe AI-kallet
+    }
 
     if (body.action === 'identify') return await handleIdentify(body)
     if (body.action === 'careguide') return await handleCareGuide(body)
@@ -329,21 +355,6 @@ async function handleChat(
     .eq('id', plantId)
     .maybeSingle()
   if (pErr || !plant) return jsonResponse({ error: 'Ingen tilgang til planten' }, 403)
-
-  // Egen dagsgrense for chat.
-  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
-  const { count } = await admin
-    .from('plant_chat_messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('role', 'user')
-    .gte('created_at', since)
-  if ((count ?? 0) >= MAX_CHAT_PER_DAY) {
-    return jsonResponse(
-      { error: `Dagsgrensen for chat (${MAX_CHAT_PER_DAY}) er nådd. Prøv igjen i morgen.` },
-      429,
-    )
-  }
 
   // Lagre brukerens melding, og hent samtalehistorikken (siste 20).
   await admin
