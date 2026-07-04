@@ -16,9 +16,12 @@ interface DuePlant {
 }
 
 Deno.serve(async (req) => {
-  // Beskyttelse: krev riktig hemmelig header hvis CRON_SECRET er satt.
+  // Beskyttelse (fail-closed): funksjonen har verify_jwt=false og er dermed
+  // offentlig nåbar, så vi krever at CRON_SECRET er konfigurert OG at kalleren
+  // oppgir riktig header. Mangler hemmeligheten, avviser vi framfor å slippe
+  // gjennom – ellers kunne hvem som helst trigge e-postutsending.
   const cronSecret = Deno.env.get('CRON_SECRET')
-  if (cronSecret && req.headers.get('x-cron-secret') !== cronSecret) {
+  if (!cronSecret || req.headers.get('x-cron-secret') !== cronSecret) {
     return new Response('Forbidden', { status: 403 })
   }
 

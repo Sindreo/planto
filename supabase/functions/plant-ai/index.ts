@@ -137,25 +137,32 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey)
 
-    // Enkel kostnadssikring: maks antall AI-kall per bruker per døgn.
-    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
-    const { count } = await admin
-      .from('diagnoses')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', since)
-    if ((count ?? 0) >= MAX_AI_PER_DAY) {
-      return jsonResponse(
-        { error: `Dagsgrensen for AI-kall (${MAX_AI_PER_DAY}) er nådd. Prøv igjen i morgen.` },
-        429,
-      )
-    }
-
     const body = (await req.json()) as Body
+
+    // Kostnadssikring: felles døgngrense for de AI-tunge handlingene
+    // (identify, careguide, diagnose). Tidligere telte vi kun `diagnoses`, så
+    // identify/careguide slapp forbi og var i praksis ubegrenset. Chat har sin
+    // egen grense inne i handleChat.
+    const VISION_ACTIONS = ['identify', 'careguide', 'diagnose']
+    if (VISION_ACTIONS.includes(body.action)) {
+      const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+      const { count } = await admin
+        .from('ai_usage')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', since)
+      if ((count ?? 0) >= MAX_AI_PER_DAY) {
+        return jsonResponse(
+          { error: `Dagsgrensen for AI-kall (${MAX_AI_PER_DAY}) er nådd. Prøv igjen i morgen.` },
+          429,
+        )
+      }
+      await admin.from('ai_usage').insert({ user_id: user.id, action: body.action })
+    }
 
     if (body.action === 'identify') return await handleIdentify(body)
     if (body.action === 'careguide') return await handleCareGuide(body)
-    if (body.action === 'diagnose') return await handleDiagnose(body, admin, user.id)
+    if (body.action === 'diagnose') return await handleDiagnose(body, admin, userClient, user.id)
     if (body.action === 'chat') return await handleChat(body, admin, userClient, user.id)
     return jsonResponse({ error: 'Ukjent handling' }, 400)
   } catch (err) {
@@ -225,10 +232,29 @@ async function handleCareGuide(body: Body): Promise<Response> {
 async function handleDiagnose(
   body: Body,
   admin: ReturnType<typeof createClient>,
+  userClient: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<Response> {
+  // Valider at bilde-URL-ene peker til vår egen storage-bøtte, så vi verken
+  // sender vilkårlige eksterne URL-er til modellen eller lagrer dem på planten.
+  const allowedPrefix = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/plant-photos/`
   const urls = (body.image_urls ?? []).slice(0, 3)
   if (urls.length === 0) return jsonResponse({ error: 'Mangler bilder' }, 400)
+  if (!urls.every((u) => typeof u === 'string' && u.startsWith(allowedPrefix))) {
+    return jsonResponse({ error: 'Ugyldig bilde-URL' }, 400)
+  }
+
+  // Bekreft at planten (hvis oppgitt) tilhører innloggers husstand – ellers
+  // kunne man knyttet en diagnose til en annen husstands plante. RLS via
+  // bruker-klienten gjør jobben. Løs diagnose (plant_id = null) er tillatt.
+  if (body.plant_id) {
+    const { data: plant, error: pErr } = await userClient
+      .from('plants')
+      .select('id')
+      .eq('id', body.plant_id)
+      .maybeSingle()
+    if (pErr || !plant) return jsonResponse({ error: 'Ingen tilgang til planten' }, 403)
+  }
 
   const images: ImageBlock[] = urls.map((url) => ({
     type: 'image',
