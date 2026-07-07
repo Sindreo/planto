@@ -39,5 +39,7 @@ export interface CareGuideResult {
   fertilize_interval_days: number | null
   repot_interval_months: number | null
   toxic_to_pets: boolean | null
+  /** Kort, konkret vannemåte (én setning): hvor grundig, jord vs. topp, blader tørre osv. */
+  water_method: string | null
   notes: string | null
 }

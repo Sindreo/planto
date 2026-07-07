@@ -20,6 +20,7 @@ export type Species = {
   fertilize_interval_days: number | null
   repot_interval_months: number | null
   toxic_to_pets: boolean | null
+  water_method: string | null
   notes: string | null
   created_at: string
 }
@@ -44,6 +45,7 @@ export type Plant = {
   fertilize_interval_days: number | null
   repot_interval_months: number | null
   toxic_to_pets: boolean | null
+  water_method: string | null
   notes: string | null
   last_watered_at: string | null
   last_fertilized_at: string | null
@@ -125,6 +127,7 @@ export interface Database {
           p_repot_interval_months?: number | null
           p_toxic_to_pets?: boolean | null
           p_notes?: string | null
+          p_water_method?: string | null
         }
         Returns: string
       }

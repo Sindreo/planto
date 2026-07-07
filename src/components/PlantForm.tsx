@@ -61,6 +61,7 @@ export default function PlantForm({ initial }: Props) {
   const [fertDays, setFertDays] = useState(numToStr(initial?.fertilize_interval_days))
   const [repotMonths, setRepotMonths] = useState(numToStr(initial?.repot_interval_months))
   const [toxic, setToxic] = useState(initial?.toxic_to_pets ?? false)
+  const [waterMethod, setWaterMethod] = useState(initial?.water_method ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
   // Lar brukeren overstyre når planten skal vannes neste gang.
   const [nextWaterDue, setNextWaterDue] = useState(initial?.next_water_due?.slice(0, 10) ?? '')
@@ -100,6 +101,7 @@ export default function PlantForm({ initial }: Props) {
     if (g.fertilize_interval_days != null && !fertDays) setFertDays(String(g.fertilize_interval_days))
     if (g.repot_interval_months != null && !repotMonths) setRepotMonths(String(g.repot_interval_months))
     if (g.toxic_to_pets != null) setToxic(g.toxic_to_pets)
+    if (g.water_method && !waterMethod) setWaterMethod(g.water_method)
     if (g.notes && !notes) setNotes(g.notes)
   }
 
@@ -293,6 +295,7 @@ export default function PlantForm({ initial }: Props) {
         fertilize_interval_days: strToNum(fertDays),
         repot_interval_months: strToNum(repotMonths),
         toxic_to_pets: toxic,
+        water_method: emptyToNull(waterMethod),
         notes: emptyToNull(notes),
         photo_url: finalPhotoUrl || null,
       }
@@ -479,6 +482,7 @@ export default function PlantForm({ initial }: Props) {
               if (g.fertilize_interval_days != null) setFertDays(String(g.fertilize_interval_days))
               if (g.repot_interval_months != null) setRepotMonths(String(g.repot_interval_months))
               if (g.toxic_to_pets != null) setToxic(g.toxic_to_pets)
+              if (g.water_method) setWaterMethod((prev) => (prev ? prev : g.water_method ?? ''))
               if (g.notes) setNotes((prev) => (prev ? prev : g.notes ?? ''))
             }}
           />
@@ -516,6 +520,13 @@ export default function PlantForm({ initial }: Props) {
               onChange={(e) => setRepotMonths(e.target.value)}
             />
           </div>
+          <Textarea
+            label="Slik vanner du"
+            rows={2}
+            placeholder="F.eks. Vann til hele jorda er fuktig; la toppen tørke før neste gang."
+            value={waterMethod}
+            onChange={(e) => setWaterMethod(e.target.value)}
+          />
           <div>
             <label className="block">
               <span className="mb-1 block text-sm font-medium text-gray-700">Neste vanning</span>
