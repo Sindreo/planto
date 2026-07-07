@@ -43,6 +43,7 @@ export async function upsertSpecies(input: {
     p_repot_interval_months: g?.repot_interval_months ?? null,
     p_toxic_to_pets: g?.toxic_to_pets ?? null,
     p_notes: g?.notes ?? null,
+    p_water_method: g?.water_method ?? null,
   })
   if (error) throw error
   return data as string
@@ -56,6 +57,7 @@ export function speciesToGuide(s: Species): CareGuideResult {
     fertilize_interval_days: s.fertilize_interval_days,
     repot_interval_months: s.repot_interval_months,
     toxic_to_pets: s.toxic_to_pets,
+    water_method: s.water_method,
     notes: s.notes,
   }
 }
