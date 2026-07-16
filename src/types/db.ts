@@ -4,6 +4,9 @@
 
 export type CareEventType = 'watered' | 'fertilized' | 'repotted' | 'note'
 
+/** Strukturert vannmengde per vanning – vises som dråpe-badge i UI-et. */
+export type WaterAmount = 'sparsom' | 'moderat' | 'rikelig'
+
 export type Household = {
   id: string
   name: string
@@ -21,6 +24,7 @@ export type Species = {
   repot_interval_months: number | null
   toxic_to_pets: boolean | null
   water_method: string | null
+  water_amount: WaterAmount | null
   notes: string | null
   created_at: string
 }
@@ -46,6 +50,7 @@ export type Plant = {
   repot_interval_months: number | null
   toxic_to_pets: boolean | null
   water_method: string | null
+  water_amount: WaterAmount | null
   notes: string | null
   last_watered_at: string | null
   last_fertilized_at: string | null
@@ -128,6 +133,7 @@ export interface Database {
           p_toxic_to_pets?: boolean | null
           p_notes?: string | null
           p_water_method?: string | null
+          p_water_amount?: string | null
         }
         Returns: string
       }

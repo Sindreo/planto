@@ -5,9 +5,11 @@ import { useAuth } from '../context/AuthContext'
 import { logWatering, undoWatering } from '../lib/care'
 import { relativeDay, todayISO, waterStatus } from '../lib/format'
 import { useRefetchOnFocus } from '../lib/useRefetchOnFocus'
+import { WATER_AMOUNT_HINTS } from '../lib/waterAmount'
 import type { Plant } from '../types/db'
 import { Skeleton } from '../components/ui'
 import { useToast } from '../components/Toast'
+import { WaterDrops } from '../components/WaterAmountBadge'
 import { Check, Drop, PlantMark } from '../components/icons'
 
 /**
@@ -261,6 +263,9 @@ function WaterRow({
   onWater: () => void
 }) {
   const overdue = waterStatus(plant) === 'overdue'
+  // Vanneveiledning i beslutningsøyeblikket: dråpeskala + kort «slik vanner
+  // du»-tekst, så man ser mengden idet man står med vannkanna.
+  const guidance = plant.water_method ?? (plant.water_amount ? WATER_AMOUNT_HINTS[plant.water_amount] : null)
   return (
     <li className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-3 shadow-sm">
       <Link to={`/plants/${plant.id}`} className="flex min-w-0 flex-1 items-center gap-3">
@@ -270,6 +275,12 @@ function WaterRow({
           <p className={`truncate text-xs ${overdue ? 'font-medium text-red-600' : 'text-gray-500'}`}>
             {overdue ? `På etterskudd · ${relativeDay(plant.next_water_due)}` : 'Skal vannes i dag'}
           </p>
+          {(plant.water_amount || guidance) && (
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-sky-800">
+              {plant.water_amount && <WaterDrops amount={plant.water_amount} className="shrink-0" />}
+              {guidance && <span className="truncate">{guidance}</span>}
+            </p>
+          )}
         </div>
       </Link>
       <button

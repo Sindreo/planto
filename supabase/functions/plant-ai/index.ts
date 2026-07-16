@@ -219,9 +219,13 @@ async function handleCareGuide(body: Body): Promise<Response> {
     'Du er en ekspert på stueplanter. Gi en stellguide for den oppgitte arten. ' +
     'Svar KUN med gyldig JSON på norsk i formatet: ' +
     '{"light_needs":"kort tekst","water_interval_days":tall,"fertilize_interval_days":tall,' +
-    '"repot_interval_months":tall,"toxic_to_pets":true|false,"water_method":"én kort setning",' +
+    '"repot_interval_months":tall,"toxic_to_pets":true|false,' +
+    '"water_amount":"sparsom"|"moderat"|"rikelig","water_method":"én kort setning",' +
     '"notes":"kort stelltips"}. ' +
     'Bruk null for felt du er usikker på. Tallene er typiske intervaller i dager/måneder. ' +
+    '"water_amount" er hvor mye vann planten skal ha per vanning: "sparsom" (la jorda tørke ' +
+    'helt ut, vann lite og sjelden), "moderat" (vann grundig når toppen av jorda er tørr) ' +
+    'eller "rikelig" (hold jorda jevnt fuktig). ' +
     '"water_method" skal være ÉN kort, konkret setning om selve vannemåten – ' +
     'f.eks. om hele jorda skal gjennomfuktes eller bare toppen, om man vanner nedenfra, ' +
     'og om bladene skal holdes tørre. Hold den enkel og praktisk, ikke overkompliser.'
