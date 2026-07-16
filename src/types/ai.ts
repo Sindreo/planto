@@ -1,5 +1,7 @@
 // Typer for AI-svar fra Edge Function `plant-ai` (Claude claude-sonnet-4-6).
 
+import type { WaterAmount } from './db'
+
 export type Confidence = 'høy' | 'middels' | 'lav'
 
 export interface SpeciesCandidate {
@@ -41,5 +43,8 @@ export interface CareGuideResult {
   toxic_to_pets: boolean | null
   /** Kort, konkret vannemåte (én setning): hvor grundig, jord vs. topp, blader tørre osv. */
   water_method: string | null
+  /** Strukturert vannmengde. Modellen kan svare hva som helst – normaliser med
+   *  `normalizeWaterAmount` før verdien brukes/lagres. */
+  water_amount: WaterAmount | null
   notes: string | null
 }

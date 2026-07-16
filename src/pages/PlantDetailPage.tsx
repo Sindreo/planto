@@ -14,6 +14,7 @@ import DiagnosePanel from '../components/DiagnosePanel'
 import DiagnosisCard, { diagnosisStatus } from '../components/DiagnosisCard'
 import PlantChat from '../components/PlantChat'
 import ConfirmDialog from '../components/ConfirmDialog'
+import WaterAmountBadge from '../components/WaterAmountBadge'
 import { Button, Skeleton } from '../components/ui'
 import { ArrowLeft, Close, Drop, Leaf, Note, Person, Pin, PlantMark } from '../components/icons'
 
@@ -293,11 +294,23 @@ export default function PlantDetailPage() {
             >
               {waterStatusLabel(plant)}
             </span>
+            {plant.water_amount && <WaterAmountBadge amount={plant.water_amount} />}
             <Button onClick={handleWatered} disabled={watering}>
               <Drop className="h-4 w-4" />
               {watering ? 'Lagrer…' : 'Vannet i dag'}
             </Button>
           </div>
+
+          {/* Vannemåten hører hjemme her – ved knappen, ikke nede i stellguiden. */}
+          {plant.water_method && (
+            <div className="mt-3 flex gap-2.5 rounded-xl bg-sky-50 p-3 text-sm text-sky-900 ring-1 ring-inset ring-sky-100">
+              <Drop className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
+              <div>
+                <span className="font-medium">Slik vanner du</span>
+                <p className="mt-0.5 text-sky-800">{plant.water_method}</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -324,15 +337,6 @@ export default function PlantDetailPage() {
             value={plant.toxic_to_pets == null ? null : plant.toxic_to_pets ? 'Ja' : 'Nei'}
           />
         </dl>
-        {plant.water_method && (
-          <div className="mt-3 flex gap-2.5 rounded-xl bg-sky-50 p-3 text-sm text-sky-900 ring-1 ring-inset ring-sky-100">
-            <Drop className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
-            <div>
-              <span className="font-medium">Slik vanner du</span>
-              <p className="mt-0.5 text-sky-800">{plant.water_method}</p>
-            </div>
-          </div>
-        )}
         {plant.notes && (
           <div className="mt-3 rounded-xl bg-brand-50/60 p-3 text-sm text-gray-700">
             {plant.notes}

@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { normalizeWaterAmount } from './waterAmount'
 import type { CareGuideResult } from '../types/ai'
 import type { Species } from '../types/db'
 
@@ -44,6 +45,7 @@ export async function upsertSpecies(input: {
     p_toxic_to_pets: g?.toxic_to_pets ?? null,
     p_notes: g?.notes ?? null,
     p_water_method: g?.water_method ?? null,
+    p_water_amount: normalizeWaterAmount(g?.water_amount),
   })
   if (error) throw error
   return data as string
@@ -58,6 +60,7 @@ export function speciesToGuide(s: Species): CareGuideResult {
     repot_interval_months: s.repot_interval_months,
     toxic_to_pets: s.toxic_to_pets,
     water_method: s.water_method,
+    water_amount: s.water_amount,
     notes: s.notes,
   }
 }

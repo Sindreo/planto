@@ -15,9 +15,10 @@ import {
   setPlantResponsibles,
   type HouseholdMember,
 } from '../lib/household'
-import type { Plant, Species } from '../types/db'
+import { normalizeWaterAmount, WATER_AMOUNTS, WATER_AMOUNT_HINTS, WATER_AMOUNT_LABELS } from '../lib/waterAmount'
+import type { Plant, Species, WaterAmount } from '../types/db'
 import type { CareGuideResult, DiagnosisResult, SpeciesCandidate } from '../types/ai'
-import { Alert, Button, Checkbox, Input, Textarea } from './ui'
+import { Alert, Button, Checkbox, Input, Select, Textarea } from './ui'
 import { useToast } from './Toast'
 import IdentifySpeciesButton from './IdentifySpeciesButton'
 import CareGuideButton from './CareGuideButton'
@@ -62,6 +63,7 @@ export default function PlantForm({ initial }: Props) {
   const [repotMonths, setRepotMonths] = useState(numToStr(initial?.repot_interval_months))
   const [toxic, setToxic] = useState(initial?.toxic_to_pets ?? false)
   const [waterMethod, setWaterMethod] = useState(initial?.water_method ?? '')
+  const [waterAmount, setWaterAmount] = useState<WaterAmount | ''>(initial?.water_amount ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
   // Lar brukeren overstyre når planten skal vannes neste gang.
   const [nextWaterDue, setNextWaterDue] = useState(initial?.next_water_due?.slice(0, 10) ?? '')
@@ -102,6 +104,8 @@ export default function PlantForm({ initial }: Props) {
     if (g.repot_interval_months != null && !repotMonths) setRepotMonths(String(g.repot_interval_months))
     if (g.toxic_to_pets != null) setToxic(g.toxic_to_pets)
     if (g.water_method && !waterMethod) setWaterMethod(g.water_method)
+    const amount = normalizeWaterAmount(g.water_amount)
+    if (amount && !waterAmount) setWaterAmount(amount)
     if (g.notes && !notes) setNotes(g.notes)
   }
 
@@ -296,6 +300,7 @@ export default function PlantForm({ initial }: Props) {
         repot_interval_months: strToNum(repotMonths),
         toxic_to_pets: toxic,
         water_method: emptyToNull(waterMethod),
+        water_amount: waterAmount || null,
         notes: emptyToNull(notes),
         photo_url: finalPhotoUrl || null,
       }
@@ -483,6 +488,8 @@ export default function PlantForm({ initial }: Props) {
               if (g.repot_interval_months != null) setRepotMonths(String(g.repot_interval_months))
               if (g.toxic_to_pets != null) setToxic(g.toxic_to_pets)
               if (g.water_method) setWaterMethod((prev) => (prev ? prev : g.water_method ?? ''))
+              const amount = normalizeWaterAmount(g.water_amount)
+              if (amount) setWaterAmount((prev) => prev || amount)
               if (g.notes) setNotes((prev) => (prev ? prev : g.notes ?? ''))
             }}
           />
@@ -520,6 +527,18 @@ export default function PlantForm({ initial }: Props) {
               onChange={(e) => setRepotMonths(e.target.value)}
             />
           </div>
+          <Select
+            label="Vannmengde"
+            value={waterAmount}
+            onChange={(e) => setWaterAmount(e.target.value as WaterAmount | '')}
+          >
+            <option value="">Ikke satt</option>
+            {WATER_AMOUNTS.map((a) => (
+              <option key={a} value={a}>
+                {WATER_AMOUNT_LABELS[a]} – {WATER_AMOUNT_HINTS[a].toLowerCase()}
+              </option>
+            ))}
+          </Select>
           <Textarea
             label="Slik vanner du"
             rows={2}
