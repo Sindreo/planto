@@ -114,6 +114,10 @@ curl -X POST https://DIN-PROSJEKT-REF.supabase.co/functions/v1/daily-summary \
   `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` som Environment Variables.
 - **Netlify:** `netlify.toml` er ferdig. Legg inn de samme to variablene.
 
+**Glemt passord-lenker:** i Supabase → Authentication → URL Configuration må
+*Site URL* være app-adressen (f.eks. `https://planto.vercel.app`), og adressen
+bør også ligge under *Redirect URLs*. Ellers peker e-postlenken til `localhost`.
+
 HTTPS (kreves for PWA) får du automatisk. På mobil: «Legg til på hjemskjerm».
 
 ---

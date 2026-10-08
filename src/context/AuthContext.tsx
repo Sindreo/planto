@@ -14,9 +14,18 @@ interface AuthContextValue {
   profile: Profile | null
   /** True mens vi laster session/profil ved oppstart. */
   loading: boolean
+  /** True når brukeren kom inn via en «tilbakestill passord»-lenke. */
+  passwordRecovery: boolean
+  finishPasswordRecovery: () => void
   refreshProfile: () => Promise<void>
   signOut: () => Promise<void>
 }
+
+// Supabase fjerner token-fragmentet fra URL-en etter innlesing, så vi sjekker
+// det synkront ved modul-lasting – før klienten rekker å rydde.
+const openedFromRecoveryLink =
+  typeof window !== 'undefined' &&
+  /type=recovery/.test(window.location.hash + window.location.search)
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
@@ -24,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [passwordRecovery, setPasswordRecovery] = useState(openedFromRecoveryLink)
 
   async function loadProfile(userId: string) {
     const { data, error } = await supabase
@@ -53,11 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session)
       if (data.session?.user) await loadProfile(data.session.user.id)
+      // Utløpt/ugyldig lenke gir ingen session – da er det ingen gjenoppretting.
+      else setPasswordRecovery(false)
       setLoading(false)
     })
 
     // Lytt på innlogging/utlogging.
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
       setSession(newSession)
       if (newSession?.user) {
         await loadProfile(newSession.user.id)
@@ -72,11 +85,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     await supabase.auth.signOut()
     setProfile(null)
+    setPasswordRecovery(false)
   }
 
   return (
     <AuthContext.Provider
-      value={{ session, profile, loading, refreshProfile, signOut }}
+      value={{
+        session,
+        profile,
+        loading,
+        passwordRecovery,
+        finishPasswordRecovery: () => setPasswordRecovery(false),
+        refreshProfile,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>
