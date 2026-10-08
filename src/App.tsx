@@ -7,6 +7,7 @@ import Layout from './components/Layout'
 import MissingConfigPage from './pages/MissingConfigPage'
 import LoginPage from './pages/LoginPage'
 import OnboardingPage from './pages/OnboardingPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 // Sidene bak innlogging lastes ved behov (egne chunks) for raskere førstelast.
 const TodayPage = lazy(() => import('./pages/TodayPage'))
@@ -16,7 +17,7 @@ const PlantFormPage = lazy(() => import('./pages/PlantFormPage'))
 const PlantDetailPage = lazy(() => import('./pages/PlantDetailPage'))
 
 export default function App() {
-  const { session, profile, loading } = useAuth()
+  const { session, profile, loading, passwordRecovery } = useAuth()
 
   // 1) Frontend mangler Supabase-nøkler → vis oppsettsguide.
   if (!isSupabaseConfigured) return <MissingConfigPage />
@@ -32,6 +33,9 @@ export default function App() {
 
   // 3) Ikke innlogget.
   if (!session) return <LoginPage />
+
+  // 3b) Kom inn via «glemt passord»-lenke → la brukeren velge nytt passord.
+  if (passwordRecovery) return <ResetPasswordPage />
 
   // 4) Innlogget, men ikke knyttet til en husstand ennå.
   if (!profile?.household_id) return <OnboardingPage />

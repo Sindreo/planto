@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { Alert, Button, Card, Input } from '../components/ui'
 import { PlantoMark } from '../components/icons'
 
-type Mode = 'signin' | 'signup'
+type Mode = 'signin' | 'signup' | 'forgot'
 
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('signin')
@@ -13,6 +13,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+
+  function switchMode(next: Mode) {
+    setMode(next)
+    setError(null)
+    setInfo(null)
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -32,6 +38,15 @@ export default function LoginPage() {
             'Klikk lenken i den for å aktivere kontoen, så kan du logge inn.',
         )
         setMode('signin')
+      } else if (mode === 'forgot') {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin,
+        })
+        if (error) throw error
+        setInfo(
+          'Hvis det finnes en konto med denne e-posten, har vi sendt deg en lenke ' +
+            'for å velge nytt passord. Sjekk innboksen (og søppelpost).',
+        )
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
@@ -60,14 +75,14 @@ export default function LoginPage() {
         <div className="mb-4 flex rounded-xl bg-brand-50 p-1 text-sm font-medium">
           <button
             className={`flex-1 rounded-lg py-2 ${mode === 'signin' ? 'bg-white shadow-sm text-brand-800' : 'text-gray-500'}`}
-            onClick={() => setMode('signin')}
+            onClick={() => switchMode('signin')}
             type="button"
           >
             Logg inn
           </button>
           <button
             className={`flex-1 rounded-lg py-2 ${mode === 'signup' ? 'bg-white shadow-sm text-brand-800' : 'text-gray-500'}`}
-            onClick={() => setMode('signup')}
+            onClick={() => switchMode('signup')}
             type="button"
           >
             Ny konto
@@ -94,23 +109,54 @@ export default function LoginPage() {
             required
             autoComplete="email"
           />
-          <Input
-            label="Passord"
-            type="password"
-            placeholder="Minst 6 tegn"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-          />
+          {mode === 'forgot' ? (
+            <p className="text-sm text-gray-600">
+              Skriv inn e-posten din, så sender vi deg en lenke for å velge nytt passord.
+            </p>
+          ) : (
+            <Input
+              label="Passord"
+              type="password"
+              placeholder="Minst 6 tegn"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+            />
+          )}
 
           {error && <Alert tone="error">{error}</Alert>}
           {info && <Alert tone="info">{info}</Alert>}
 
           <Button type="submit" disabled={loading} className="w-full">
-            {loading ? 'Vent litt…' : mode === 'signin' ? 'Logg inn' : 'Opprett konto'}
+            {loading
+              ? 'Vent litt…'
+              : mode === 'signin'
+                ? 'Logg inn'
+                : mode === 'signup'
+                  ? 'Opprett konto'
+                  : 'Send lenke'}
           </Button>
+
+          {mode === 'signin' && (
+            <button
+              type="button"
+              className="block w-full text-center text-sm text-brand-700 hover:underline"
+              onClick={() => switchMode('forgot')}
+            >
+              Glemt passord?
+            </button>
+          )}
+          {mode === 'forgot' && (
+            <button
+              type="button"
+              className="block w-full text-center text-sm text-brand-700 hover:underline"
+              onClick={() => switchMode('signin')}
+            >
+              Tilbake til innlogging
+            </button>
+          )}
         </form>
       </Card>
     </div>
@@ -123,5 +169,7 @@ function translateAuthError(err: unknown): string {
   if (/user already registered/i.test(msg)) return 'Det finnes allerede en konto med denne e-posten.'
   if (/password should be at least/i.test(msg)) return 'Passordet må være minst 6 tegn.'
   if (/email not confirmed/i.test(msg)) return 'Bekreft e-posten din før du logger inn.'
+  if (/rate limit|only request this after/i.test(msg))
+    return 'Du har bedt om for mange e-poster. Vent litt og prøv igjen.'
   return msg
 }
